@@ -4,8 +4,9 @@ pfClustersFromCombinedCalo = cms.EDProducer("L1TPFCaloProducer",
      ecalCandidates = cms.VInputTag(cms.InputTag('pfClustersFromL1EGClusters')), # using EM from towers in HGC, no longer reading also 'pfClustersFromHGC3DClustersEM'  
      hcalCandidates = cms.VInputTag(),
      hcalDigis = cms.VInputTag(cms.InputTag('simHcalTriggerPrimitiveDigis')),
-     hcalDigisBarrel = cms.bool(True),
+     hcalDigisBarrel = cms.bool(False),
      hcalDigisHF = cms.bool(True),
+     phase2barrelCaloTowers = cms.VInputTag(cms.InputTag("L1EGammaClusterEmuProducer","L1CaloTowerCollection")),
      hcalHGCTowers = cms.VInputTag(cms.InputTag("hgcalTowerProducer:HGCalTowerProcessor") ),
      hcalHGCTowersHadOnly = cms.bool(False), # take also EM part from towers
      emCorrector  = cms.string(""), # no need to correct further
@@ -46,10 +47,8 @@ pfClustersFromCombinedCalo = cms.EDProducer("L1TPFCaloProducer",
      ),
      resol = cms.PSet(
             etaBins = cms.vdouble( 1.300,  1.700,  2.800,  3.200,  4.000,  5.000),
-            offset  = cms.vdouble( 2.688,  1.382,  2.096,  1.022,  0.757,  0.185),
-            scale   = cms.vdouble( 0.154,  0.341,  0.105,  0.255,  0.208,  0.306),
-            ptMin   = cms.vdouble( 5.000,  5.000,  5.000,  5.000,  5.000,  5.000),
-            ptMax   = cms.vdouble(999999, 999999, 999999, 999999, 999999, 999999),
+            offset  = cms.vdouble( 2.572,  1.759,  1.858,  2.407,  1.185,  1.658),
+            scale   = cms.vdouble( 0.132,  0.240,  0.090,  0.138,  0.143,  0.147),
             kind    = cms.string('calo'),
     ),
     debug = cms.untracked.int32(0),

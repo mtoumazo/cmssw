@@ -108,10 +108,8 @@ phase2_SimL1Emulator += l1EGammaEEProducer
 
 #  CaloJets
 # ########################################################################
-from L1Trigger.L1CaloTrigger.L1TowerCalibrationProducer_cfi import *
-phase2_SimL1Emulator += L1TowerCalibrationProducer
-from L1Trigger.L1CaloTrigger.L1CaloJetProducer_cfi import *
-phase2_SimL1Emulator += L1CaloJetProducer
+from L1Trigger.L1CaloTrigger.L1CaloJets_cff import *
+phase2_SimL1Emulator += l1CaloJetsSequence
 
 # Barrel L1Tk + Stub
 # ########################################################################
@@ -129,7 +127,6 @@ phase2_SimL1Emulator += l1TkMuonStubEndCap
 # ########################################################################
 from L1Trigger.L1TTrackMatch.L1TkObjectProducers_cff import *
 phase2_SimL1Emulator += L1TkPrimaryVertex
-
 #phase2_SimL1Emulator += L1TkElectrons # warning this has a PhaseI EG seed!
 #phase2_SimL1Emulator += L1TkIsoElectrons # warning this has a PhaseI EG seed!
 #phase2_SimL1Emulator += L1TkPhotons # warning this has a PhaseI EG seed!
@@ -143,6 +140,7 @@ phase2_SimL1Emulator += L1TkElectronsLooseHGC
 phase2_SimL1Emulator += L1TkPhotonsHGC
 
 phase2_SimL1Emulator += L1TkCaloJets
+phase2_SimL1Emulator += TwoLayerJets
 phase2_SimL1Emulator += L1TrackerJets
 phase2_SimL1Emulator += L1TrackerEtMiss
 phase2_SimL1Emulator += L1TkCaloHTMissVtx
@@ -160,20 +158,20 @@ from L1Trigger.Phase2L1ParticleFlow.l1pfJetMet_cff import *
 # Describe here l1PFJets sequence
 # ###############################
 #l1PFJets = cms.Sequence(
-#  ak4PFL1Calo + ak4PFL1PF + ak4PFL1Puppi + ak4PFL1PuppiForMET +
-#  ak4PFL1CaloCorrected + ak4PFL1PFCorrected + ak4PFL1PuppiCorrected + ak4PFL1PuppiForMETCorrected
+#  ak4PFL1Calo + ak4PFL1PF + ak4PFL1Puppi +
+#  ak4PFL1CaloCorrected + ak4PFL1PFCorrected + ak4PFL1PuppiCorrected)
 phase2_SimL1Emulator += l1PFJets
 # Describe here l1PFMets sequence
 # ###############################
-#l1PFMets = cms.Sequence(l1PFMetCalo + l1PFMetPF + l1PFMetPuppi + l1PFMetPuppiForMET)
+#l1PFMets = cms.Sequence(l1PFMetCalo + l1PFMetPF + l1PFMetPuppi)
 phase2_SimL1Emulator += l1PFMets
 
 # PFTaus(HPS)
 # ########################################################################
 from L1Trigger.Phase2L1Taus.L1PFTauProducer_cff import L1PFTauProducer
 l1pfTauProducer = L1PFTauProducer.clone()
-l1pfTauProducer.L1PFObjects = cms.InputTag("l1pfProducer","PF")
-l1pfTauProducer.L1Neutrals = cms.InputTag("l1pfProducer")
+l1pfTauProducer.L1PFObjects = cms.InputTag("l1pfCandidates","PF")
+l1pfTauProducer.L1Neutrals = cms.InputTag("l1pfCandidates")
 phase2_SimL1Emulator += l1pfTauProducer
 
 from Configuration.Eras.Modifier_phase2_trigger_cff import phase2_trigger
