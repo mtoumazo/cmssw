@@ -3,7 +3,6 @@ import os, sys
 
 from Configuration.StandardSequences.Eras import eras
 
-#process = cms.Process('RERUNL1',eras.Phase2C2_timing)
 process = cms.Process('RERUNL1',eras.Phase2_trigger)
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
@@ -39,6 +38,7 @@ process.source = cms.Source("PoolSource",
     secondaryFileNames = cms.untracked.vstring(),
     inputCommands = cms.untracked.vstring(
                     "keep *",
+                    "keep *_hgcalBackEndLayer2Producer_*_*",
                     "drop l1tEMTFHitExtras_simEmtfDigis_CSC_HLT",
                     "drop l1tEMTFHitExtras_simEmtfDigis_RPC_HLT",
                     "drop l1tEMTFTrackExtras_simEmtfDigis__HLT",
@@ -64,30 +64,9 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, '100X_upgrade2023_realistic_v1', '')
 #process.Timing = cms.Service("Timing")
 
-'''
-# Other statements
-process.mix.input.nbPileupEvents.averageNumber = cms.double(200.000000)
-process.mix.bunchspace = cms.int32(25)
-process.mix.minBunch = cms.int32(-12)
-process.mix.maxBunch = cms.int32(3)
-from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, '90X_upgrade2023_realistic_v9', '')
-
 
 process.HcalHardcodeGeometryEP = cms.ESProducer("HcalHardcodeGeometryEP",
     UseOldLoader = cms.bool(False)
-)
-
-
-process.HcalTPGCoderULUT = cms.ESProducer("HcalTPGCoderULUT",
-    FGLUTs = cms.FileInPath('CalibCalorimetry/HcalTPGAlgos/data/HBHE_FG_LUT.dat'),
-    LUTGenerationMode = cms.bool(True),
-    MaskBit = cms.int32(32768),
-    RCalibFile = cms.FileInPath('CalibCalorimetry/HcalTPGAlgos/data/RecHit-TPG-calib.dat'),
-    inputLUTs = cms.FileInPath('CalibCalorimetry/HcalTPGAlgos/data/inputLUTcoder_physics.dat'),
-    read_Ascii_LUTs = cms.bool(False),
-    read_FG_LUTs = cms.bool(False),
-    read_XML_LUTs = cms.bool(False)
 )
 
 
@@ -103,22 +82,6 @@ process.CaloGeometryBuilder = cms.ESProducer("CaloGeometryBuilder",
 )
 
 
-process.CaloTPGTranscoder = cms.ESProducer("CaloTPGTranscoderULUTs",
-    HFTPScaleShift = cms.PSet(
-        NCT = cms.int32(1),
-        RCT = cms.int32(3)
-    ),
-    LUTfactor = cms.vint32(1, 2, 5, 0),
-    RCTLSB = cms.double(0.25),
-    ZS = cms.vint32(4, 2, 1, 0),
-    hcalLUT1 = cms.FileInPath('CalibCalorimetry/CaloTPG/data/outputLUTtranscoder_physics.dat'),
-    hcalLUT2 = cms.FileInPath('CalibCalorimetry/CaloTPG/data/TPGcalcDecompress2.txt'),
-    ietaLowerBound = cms.vint32(1, 18, 27, 29),
-    ietaUpperBound = cms.vint32(17, 26, 28, 32),
-    nominal_gain = cms.double(0.177),
-    read_Ascii_Compression_LUTs = cms.bool(False),
-    read_Ascii_RCT_LUTs = cms.bool(False)
-)
 
 
 process.CaloTopologyBuilder = cms.ESProducer("CaloTopologyBuilder")
@@ -133,27 +96,6 @@ process.CaloTowerTopologyEP = cms.ESProducer("CaloTowerTopologyEP")
 #TrackTriggerAssociatorTracks = cms.Sequence(TTTrackAssociatorFromPixelDigis)
 
 process.load('L1Trigger.L1THGCal.hgcalTriggerPrimitives_cff')
-# Remove best choice selection
-process.hgcalTriggerPrimitiveDigiProducer.FECodec.NData = cms.uint32(999)
-process.hgcalTriggerPrimitiveDigiProducer.FECodec.DataLength = cms.uint32(8)
-process.hgcalTriggerPrimitiveDigiProducer.FECodec.triggerCellTruncationBits = cms.uint32(7)
-
-process.hgcalTriggerPrimitiveDigiProducer.BEConfiguration.algorithms[0].calib_parameters.cellLSB = cms.double(
-        process.hgcalTriggerPrimitiveDigiProducer.FECodec.linLSB.value() * 
-        2 ** process.hgcalTriggerPrimitiveDigiProducer.FECodec.triggerCellTruncationBits.value() 
-)
-
-cluster_algo_all =  cms.PSet( AlgorithmName = cms.string('HGCClusterAlgoBestChoice'),
-                              FECodec = process.hgcalTriggerPrimitiveDigiProducer.FECodec,
-                              HGCalEESensitive_tag = cms.string('HGCalEESensitive'),
-                              HGCalHESiliconSensitive_tag = cms.string('HGCalHESiliconSensitive'),                           
-                              calib_parameters = process.hgcalTriggerPrimitiveDigiProducer.BEConfiguration.algorithms[0].calib_parameters,
-                              C2d_parameters = process.hgcalTriggerPrimitiveDigiProducer.BEConfiguration.algorithms[0].C2d_parameters,
-                              C3d_parameters = process.hgcalTriggerPrimitiveDigiProducer.BEConfiguration.algorithms[0].C3d_parameters
-                              )
-
-
-process.hgcalTriggerPrimitiveDigiProducer.BEConfiguration.algorithms = cms.VPSet( cluster_algo_all )
 
 process.hgcl1tpg_step = cms.Path(process.hgcalTriggerPrimitives)
 
@@ -166,15 +108,6 @@ process.load('SimCalorimetry.EcalEBTrigPrimProducers.ecalEBTriggerPrimitiveDigis
 process.EcalEBtp_step = cms.Path(process.simEcalEBTriggerPrimitiveDigis)
 
 # Path and EndPath definitions
-process.HcalTPsimulation_step = cms.Path(process.hcalTTPSequence)
-process.L1simulation_step = cms.Path(process.SimL1Emulator)
-
-process.load('L1Trigger.TrackFindingTracklet.L1TrackletTracks_cff')
-process.L1TrackTrigger_step = cms.Path(process.L1TrackletTracks)
-
-process.endjob_step = cms.EndPath(process.endOfProcess)
-'''
-# Path and EndPath definitions
 #process.HcalTPsimulation_step = cms.Path(process.hcalTTPSequence)
 #process.L1simulation_step = cms.Path(process.SimL1Emulator)
 
@@ -183,6 +116,9 @@ process.L1TrackTrigger_step = cms.Path(process.L1TrackletTracks)
 
 process.load('L1Trigger.L1CaloTrigger.L1EGammaCrystalsEmulatorProducer_cfi')
 process.pL1EG = cms.Path( process.L1EGammaClusterEmuProducer )
+
+process.load('L1Trigger.L1CaloTrigger.l1EGammaEEProducer_cfi')
+process.pL1EGHGCal = cms.Path( process.l1EGammaEEProducer )
 
 # ----                                                                                                                                                         
 process.load("L1Trigger.Phase2L1Taus.L1TkEGTauParticleProducer_cfi")
@@ -220,7 +156,9 @@ process.pDumpED = cms.Path(process.dumpED)
 
 
 #process.schedule = cms.Schedule(process.L1simulation_step, process.pL1TkEGTausProd,process.pL1TkEGTausAna
-process.schedule = cms.Schedule(process.L1TrackTrigger_step, process.pL1EG, process.pL1TkEGTausProd, process.pL1TkEGTausAna)
+#process.schedule = cms.Schedule(process.L1TrackTrigger_step, process.pL1EG, process.pL1TkEGTausProd, process.pL1TkEGTausAna)
+process.schedule = cms.Schedule(process.L1TrackTrigger_step, process.pL1EG, process.pL1EGHGCal, process.pL1TkEGTausProd, process.pL1TkEGTausAna)
+#process.schedule = cms.Schedule(process.L1TrackTrigger_step,process.hgcl1tpg_step, process.pL1EG, process.pL1EGHGCal, process.pL1TkEGTausProd, process.pL1TkEGTausAna)
 
 #dump_file = open("dump_file.py", "w")
 #dump_file.write(process.dumpPython())

@@ -7,7 +7,7 @@
 // system include files
 #include <memory>
 
-// user include files
+// user include filesz
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDProducer.h"
 
@@ -140,6 +140,7 @@ private:
   float cfg_vtxIso_WP;                 // Working point of vertex isolation (no isolation cone track with |dz0| <= cfg_vtxIso_WP)
 
   const edm::EDGetTokenT< EGammaBxCollection > egToken;
+  const edm::EDGetTokenT< EGammaBxCollection > egHGCalToken;
   const edm::EDGetTokenT<std::vector<TTTrack< Ref_Phase2TrackerDigi_ > > > trackToken;
   
 } ;
@@ -150,6 +151,7 @@ private:
 //
 L1TkEGTauParticleProducer::L1TkEGTauParticleProducer(const edm::ParameterSet& iConfig) :
   egToken(consumes< EGammaBxCollection >(iConfig.getParameter<edm::InputTag>("L1EGammaInputTag"))),
+  egHGCalToken(consumes< EGammaBxCollection >(iConfig.getParameter<edm::InputTag>("L1EGammaHGCalInputTag"))),
   trackToken(consumes< std::vector<TTTrack< Ref_Phase2TrackerDigi_> > > (iConfig.getParameter<edm::InputTag>("L1TrackInputTag")))
   {
   
@@ -221,17 +223,32 @@ L1TkEGTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
   }
   
   // the L1EGamma objects
+  // Barrel
   edm::Handle<EGammaBxCollection> eGammaHandle;
   iEvent.getByToken(egToken, eGammaHandle);  
   EGammaBxCollection eGammaCollection = (*eGammaHandle.product());
+
+  // Endcap 
+  edm::Handle<EGammaBxCollection> eGammaHGCalHandle;
+  iEvent.getByToken(egHGCalToken, eGammaHGCalHandle);
+  EGammaBxCollection eGammaHGCalCollection = (*eGammaHGCalHandle.product());
+
   EGammaBxCollection::const_iterator egIter;
   
   if( !eGammaHandle.isValid() ) {
     LogError("L1TkEGTauParticleProducer")
-      << "\nWarning: L1EmParticleCollection not found in the event. Exit."
+      << "\nWarning: L1EGammaParticleCollection not found in the event. Exit."
       << std::endl;
     return;
   }
+  
+  if( !eGammaHGCalHandle.isValid() ) {
+    LogError("L1TkEGTauParticleProducer")
+      << "\nWarning: L1EGammaHGCalParticleCollection not found in the event. Exit."
+      << std::endl;
+    return;
+  }
+  
   
   ///////////////////////////////////////////////////////////////
   //  Select Tracks and EGs passing the quality criteria
@@ -279,7 +296,7 @@ L1TkEGTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
   std::vector< EGammaRef > SelEGsPtrs;
   unsigned int ieg = 0;
 
-  // For-loop: All the L1EGs
+  // For-loop: All the L1EGs (Barrel)
   for (egIter = eGammaCollection.begin(); egIter != eGammaCollection.end();  ++egIter) {
     edm::Ref< EGammaBxCollection > EGammaRef( eGammaHandle, ieg++ );
     
@@ -293,7 +310,26 @@ L1TkEGTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
     SelEGsPtrs.push_back(EGammaRef);
 
   }// End-loop: All the L1EGs
-  
+
+  /*
+  unsigned int ieg = 0;
+
+  // For-loop: All the L1EGs (Barrel)
+  for (egIter = eGammaHGCalCollection.begin(); egIter != eGammaHGCalCollection.end();  ++egIter) {
+    edm::Ref< EGammaBxCollection > EGammaRef( eGammaHGCalHandle, ieg++ );
+    
+    float Et = egIter -> et();
+    float Eta = egIter -> eta();
+    std::cout << Et<< "    "<< Eta<<std::endl;
+    
+    if (Et < cfg_eg_minEt) continue;
+    if (fabs(Eta) < cfg_eg_minEta) continue;
+    if (fabs(Eta) > cfg_eg_maxEta) continue;
+    
+    SelEGsPtrs.push_back(EGammaRef);
+
+  }// End-loop: All the L1EGs
+  */
   // Sort by ET all selected L1EGs
   std::sort( SelEGsPtrs.begin(), SelEGsPtrs.end(), EtComparator() ); 
 

@@ -15,7 +15,7 @@ L1TkEGTaus = cms.EDProducer("L1TkEGTauParticleProducer",
                             
         # L1 EGammas
         L1EGammaInputTag      = cms.InputTag("L1EGammaClusterEmuProducer", "L1EGammaCollectionBXVEmulator"), 
-        #L1EGammaHGCalInputTag = cms.InputTag("l1EGammaEEProducer","L1EGammaCollectionBXVWithCuts"),
+        L1EGammaHGCalInputTag = cms.InputTag("l1EGammaEEProducer","L1EGammaCollectionBXVWithCuts"),
         eg_minEt              = cms.double( 1.5 ),
         eg_minEta             = cms.double( 0.0 ),
         eg_maxEta             = cms.double( 1.5 ),
