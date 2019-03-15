@@ -309,27 +309,26 @@ L1TkEGTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
     
     SelEGsPtrs.push_back(EGammaRef);
 
-  }// End-loop: All the L1EGs
+  }// End-loop: All the L1EGs (Barrel)
 
-  /*
-  unsigned int ieg = 0;
+  // Re-initialize EGs counter to loop over HGCal EGs
+  ieg = 0;
 
-  // For-loop: All the L1EGs (Barrel)
+  // For-loop: All the L1EGs (Endcap)
   for (egIter = eGammaHGCalCollection.begin(); egIter != eGammaHGCalCollection.end();  ++egIter) {
     edm::Ref< EGammaBxCollection > EGammaRef( eGammaHGCalHandle, ieg++ );
     
     float Et = egIter -> et();
     float Eta = egIter -> eta();
-    std::cout << Et<< "    "<< Eta<<std::endl;
-    
+
     if (Et < cfg_eg_minEt) continue;
     if (fabs(Eta) < cfg_eg_minEta) continue;
     if (fabs(Eta) > cfg_eg_maxEta) continue;
     
     SelEGsPtrs.push_back(EGammaRef);
 
-  }// End-loop: All the L1EGs
-  */
+  }// End-loop: All the L1EGs (Endcap)
+  
   // Sort by ET all selected L1EGs
   std::sort( SelEGsPtrs.begin(), SelEGsPtrs.end(), EtComparator() ); 
 
