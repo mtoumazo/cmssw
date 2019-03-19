@@ -103,6 +103,9 @@ private:
   TH1F* phiL1TrkObjMatched;
   TH1F* massL1TrkObjMatched;
 
+  // Matching
+  TH1F* drL1TrkObjWithGen;
+
   // Performance 
   TH1F* etL1TrkObjTurnOn;
   TH1F* etGenObjTurnOn;
@@ -192,6 +195,9 @@ void L1TausAnalyzer::beginJob() {
     etGenL1Obj    = fs->make<TH1F>("GenEt"   , "GenEt"   , 40, 0.5, 200.5);
     etaGenL1Obj   = fs->make<TH1F>("GenEta"  , "GenEta"  , 90, -4.5, 4.5);
     phiGenL1Obj   = fs->make<TH1F>("GenPhi"  , "GenPhi"  , 64, -3.2, 3.2);
+
+    // Matching 
+    drL1TrkObjWithGen = fs->make<TH1F>("DRMin_L1TrkObj_Gen", "DRMin_L1TrkObj_Gen", 200, 0.0, 1.0);
 
     // L1 Matched object
     etL1TrkObjMatched    = fs->make<TH1F>("EtMatched"   ,"EtMatched"   , 40, 0.5, 200.5);
@@ -404,7 +410,10 @@ void L1TausAnalyzer::checkEfficiency(const T1 & tkObjCollection) {
       }
       
     }// End-loop: All the track objects in the event
-    
+
+    // Fill minimum deltaR histogram
+    drL1TrkObjWithGen -> Fill(dRminTkObj);
+
     // Apply the matching dR criteria
     if (dRminTkObj < cfg_dRMatching) {
       selectedL1TkObjTot++;
