@@ -26,7 +26,7 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(200)
+    input = cms.untracked.int32(20)
 )
 
 # Input source
@@ -63,11 +63,15 @@ process.L1simulation_step = cms.Path(process.SimL1Emulator)
 process.load('L1Trigger.TrackFindingTracklet.L1TrackletTracks_cff')
 process.L1TrackTrigger_step = cms.Path(process.L1TrackletTracks)
 
+process.load("L1Trigger.Phase2L1Taus.L1TrkTauParticleProducer_cfi")
+process.pL1TrkTausProd = cms.Path( process.L1TrkTaus )
+
 process.load('L1Trigger.L1CaloTrigger.L1EGammaCrystalsEmulatorProducer_cfi')
 process.pL1EG = cms.Path( process.L1EGammaClusterEmuProducer )
 
 process.load('L1Trigger.L1CaloTrigger.l1EGammaEEProducer_cfi')
 process.pL1EGHGCal = cms.Path( process.l1EGammaEEProducer )
+
 
 # ----                                                                                                                                                        
 
