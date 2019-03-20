@@ -23,7 +23,7 @@ L1CaloTkTaus = cms.EDProducer("L1CaloTkTauParticleProducer",
         seedTk_maxDeltaR    = cms.double( 0.15 ),
 
         # Matching parameters
-        matching_maxDeltaR  = cms.double( 0.1 ),
+        matching_maxDeltaR  = cms.double( 0.2 ),
         matchHighestPt      = cms.bool( False ),         
 
         # Signal cone and clustering parameters
@@ -40,7 +40,7 @@ L1CaloTkTaus = cms.EDProducer("L1CaloTkTauParticleProducer",
         # CaloTau parameters
         L1CaloTauInputTag   = cms.untracked.VInputTag("simCaloStage2Digis"), #same as in L1Trigger/L1TNtuples/python/l1PhaseIITreeProducer_cfi.py
         caloTauEtMin        = cms.double( 0.0 ),
-        calibrateCaloTaus   = cms.bool( False ),
+        calibrateCaloTaus   = cms.bool( True ),
 
         # Isolation parameters
         useVtxIso = cms.bool( True ),

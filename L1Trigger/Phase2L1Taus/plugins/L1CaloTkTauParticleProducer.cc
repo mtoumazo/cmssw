@@ -457,7 +457,6 @@ void L1CaloTkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSe
       math::XYZTLorentzVector caloTaup4 = finalTau.p4();
       if(cfg_calibrateCaloTaus)	caloTaup4 = CalibratedCaloTauP4(finalTau, caloEt);
 
-      std::cout<< caloTaup4.Et()<<std::endl;
       L1CaloTkTauParticle caloTauCandidate(caloTaup4, tracksp4, sigConeTks, finalTau, vtxIso); //, caloEt);
       result -> push_back( caloTauCandidate );
       
