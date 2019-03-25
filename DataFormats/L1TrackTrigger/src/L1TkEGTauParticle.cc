@@ -17,11 +17,11 @@ L1TkEGTauParticle::L1TkEGTauParticle()
 L1TkEGTauParticle::L1TkEGTauParticle( const LorentzVector& p4,
 				      const std::vector< L1TTTrackRefPtr >& clustTracks,
 				      const std::vector< EGammaRef >& clustEGs,
-				      float vtxIso )
+				      float iso )
   : L1Candidate  ( p4 ),
     clustTracks_ ( clustTracks ),
     clustEGs_ ( clustEGs ),
-    vtxIso_      ( vtxIso ) 
+    iso_      ( iso ) 
 {
 
 }

@@ -44,7 +44,7 @@ namespace l1t {
     L1TkEGTauParticle( const LorentzVector& p4,
 		    const std::vector< L1TTTrackRefPtr >& clustTracks,
 		    const std::vector< EGammaRef >& clustEGs,
-		    float vtxIso = -999. );
+		    float iso = -999. );
 
     virtual ~L1TkEGTauParticle() {}
       
@@ -56,20 +56,18 @@ namespace l1t {
     
     const std::vector< EGammaRef > getEGs() const { return clustEGs_; }
 
-    float getEt() const { return et(); }
-
-    float getVtxIso() const { return vtxIso_ ; }     
+    float getIso() const { return iso_ ; }     
 
     // ---------- member functions ---------------------------
     
-    void setVtxIso(float VtxIso)  { vtxIso_ = VtxIso ; }
+    void setVtxIso(float iso)  { iso_ = iso ; }
     
     //	 int bx() const;
     
   private:
     std::vector< L1TTTrackRefPtr > clustTracks_;
     std::vector< EGammaRef > clustEGs_;
-    float vtxIso_;
+    float iso_;
 
   };
 }

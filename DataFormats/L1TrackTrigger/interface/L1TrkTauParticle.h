@@ -41,7 +41,7 @@ namespace l1t {
 
     L1TrkTauParticle( const LorentzVector& p4,
 		    const std::vector< L1TTTrackRefPtr >& clustTracks,
-		    float vtxIso = -999. );
+		    float iso = -999. );
 
     virtual ~L1TrkTauParticle() {}
       
@@ -51,19 +51,17 @@ namespace l1t {
 
     const std::vector< L1TTTrackRefPtr > getTrks() const { return clustTracks_; }
 
-    float getEt() const { return et(); }
-
-    float getVtxIso() const { return vtxIso_ ; } 
+    float getIso() const { return iso_ ; } 
     
     // ---------- member functions ---------------------------
     
-    void setVtxIso(float VtxIso)  { vtxIso_ = VtxIso ; }
+    void setIso(float iso)  { iso_ = iso ; }
     
     //	 int bx() const;
     
   private:
     std::vector< L1TTTrackRefPtr > clustTracks_;
-    float vtxIso_;
+    float iso_;
 
   };
 }
