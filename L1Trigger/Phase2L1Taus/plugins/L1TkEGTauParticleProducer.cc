@@ -336,7 +336,7 @@ n = "<< isoCone_dRMin <<"  , isoCone_dRMax = "<< cfg_isoCone_dRMax <<std::endl;
     // Retrieve the properties of the track tau candidate (track cluster)
     std::vector<L1TTTrackRefPtr> TrackCluster = iTrkTau->getTrks();
     math::XYZTLorentzVector p4_trks = iTrkTau->p4();
-    float vtxIso = iTrkTau->getVtxIso();
+    float iso = iTrkTau->getIso();
 
     // EGs clustering 
     std::vector<EGammaRef> EGcluster;
@@ -387,7 +387,7 @@ n = "<< isoCone_dRMin <<"  , isoCone_dRMax = "<< cfg_isoCone_dRMax <<std::endl;
     // Build the tau candidate
     math::XYZTLorentzVector p4_total;
     p4_total = p4_trks + p4_egs;
-    L1TkEGTauParticle trkEG(p4_total, TrackCluster, EGcluster, vtxIso);
+    L1TkEGTauParticle trkEG(p4_total, TrackCluster, EGcluster, iso);
     
     // Keep the tracks+EGs tau candidate 
     result -> push_back( trkEG );
