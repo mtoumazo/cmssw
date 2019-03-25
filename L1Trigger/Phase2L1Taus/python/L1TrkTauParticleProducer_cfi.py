@@ -35,7 +35,9 @@ L1TrkTaus = cms.EDProducer("L1TrkTauParticleProducer",
         maxInvMass_trks = cms.double( 1.50 ), # GeV 
 
         # Isolation parameters
-        useVtxIso = cms.bool( True ),
-        vtxIso_WP = cms.double( 1.0 ),
-        
+        useVtxIso  = cms.bool( True ),
+        useRelIso  = cms.bool( False ),
+        vtxIso_WP  = cms.double( 1.0 ),
+        relIso_WP  = cms.double( 0.05 ),
+        relIso_dz0 = cms.double( 0.5 ),
 )
