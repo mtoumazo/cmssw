@@ -95,6 +95,8 @@ private:
   TH1F* etaGenL1Obj;
   TH1F* phiGenL1Obj;
 
+  TH1F* etVisGenL1ObjMatched;
+
   // L1-Track Objects 
   TH1F* nL1TrkObj;
   TH1F* etL1TrkObj;  
@@ -105,6 +107,7 @@ private:
   TH1F* etaL1TrkObjMatched;
   TH1F* phiL1TrkObjMatched;
   TH1F* massL1TrkObjMatched;
+
 
   // Matching
   TH1F* drL1TrkObjWithGen;
@@ -190,7 +193,7 @@ void L1TausAnalyzer::beginJob() {
 
   // L1 Objects
   nL1TrkObj     = fs->make<TH1F>("Multiplicity","Multiplicity", 50, -0.5, 49.5);
-  etL1TrkObj    = fs->make<TH1F>("Et"   ,"Et"   , 200, 0.5, 200.5);
+  etL1TrkObj    = fs->make<TH1F>("Et"   ,"Et"   , 100, 0.5, 500.5);
   etaL1TrkObj   = fs->make<TH1F>("Eta"  ,"Eta"  , 90, -4.5, 4.5);
   phiL1TrkObj   = fs->make<TH1F>("Phi"  ,"Phi"  , 64, -3.2, 3.2);
   massL1TrkObj  = fs->make<TH1F>("Mass" ,"Mass" , 20, 0.0, 2.0);
@@ -198,10 +201,10 @@ void L1TausAnalyzer::beginJob() {
   if (cfg_analysisOption == "Efficiency") {
     
     // Gen Particles
-    etVisGenL1Obj  = fs->make<TH1F>("GenEtVis" , "GenEtVis" , 40, 0.5, 200.5);
-    etaVisGenL1Obj = fs->make<TH1F>("GenEtaVis", "GenEtaVis", 40, 0.5, 200.5);
-    phiVisGenL1Obj = fs->make<TH1F>("GenPhiVis", "GenPhiVis", 40, 0.5, 200.5);
-    etGenL1Obj     = fs->make<TH1F>("GenEt"    , "GenEt"    , 40, 0.5, 200.5);
+    etVisGenL1Obj  = fs->make<TH1F>("GenEtVis" , "GenEtVis" , 100, 0.5, 500.5);
+    etaVisGenL1Obj = fs->make<TH1F>("GenEtaVis", "GenEtaVis", 100, 0.5, 500.5);
+    phiVisGenL1Obj = fs->make<TH1F>("GenPhiVis", "GenPhiVis", 100, 0.5, 500.5);
+    etGenL1Obj     = fs->make<TH1F>("GenEt"    , "GenEt"    , 100, 0.5, 500.5);
     etaGenL1Obj    = fs->make<TH1F>("GenEta"   , "GenEta"   , 90, -4.5, 4.5);
     phiGenL1Obj    = fs->make<TH1F>("GenPhi"   , "GenPhi"   , 64, -3.2, 3.2);
 
@@ -210,18 +213,21 @@ void L1TausAnalyzer::beginJob() {
     drVisL1TrkObjWithGen = fs->make<TH1F>("DRMinVis_L1TrkObj_Gen", "DRMinVis_L1TrkObj_Gen", 200, 0.0, 1.0);
 
     // L1 Matched object
-    etL1TrkObjMatched    = fs->make<TH1F>("EtMatched"   ,"EtMatched"   , 40, 0.5, 200.5);
+    etL1TrkObjMatched    = fs->make<TH1F>("EtMatched"   ,"EtMatched"   , 100, 0.5, 500.5);
     etaL1TrkObjMatched   = fs->make<TH1F>("EtaMatched"  ,"EtaMatched"  , 90, -4.5, 4.5);
     phiL1TrkObjMatched   = fs->make<TH1F>("PhiMatched"  ,"PhiMatched"  , 64, -3.2, 3.2);
     massL1TrkObjMatched  = fs->make<TH1F>("MassMatched" ,"MassMatched" , 20, 0.0, 2.0);
+
+    // Gen Matched object
+    etVisGenL1ObjMatched   = fs->make<TH1F>("GenEtVisMatched", "GenEtVisMatched", 100, 0.5, 500.5);
 
     // 2D Plots
     drVsdRVisL1TrkObjWithGen = fs->make<TH2F>("DRMinVsDRMinVis_L1TrkObj_Gen", "DRMinVsDRMinVis_L1TrkObj_Gen", 200, 0.0, 1.0, 200, 0.0, 1.0);
     etL1TrkObjVsGen = fs->make<TH2F>("EtVsGenEt", "EtVsGenEt", 200, 0.5, 200.5, 200, 0.5, 200.5);
     
     // Turn-on numerator plots
-    etL1TrkObjTurnOn = fs->make<TH1F>("EtTurnOn"   , "EtTurnOn"   , 40, 0.5, 200.5);
-    etGenObjTurnOn   = fs->make<TH1F>("GenEtTurnOn", "GenEtTurnOn", 40, 0.5, 200.5);
+    etL1TrkObjTurnOn = fs->make<TH1F>("EtTurnOn"   , "EtTurnOn"   , 100, 0.5, 500.5);
+    etGenObjTurnOn   = fs->make<TH1F>("GenEtTurnOn", "GenEtTurnOn", 100, 0.5, 500.5);
     
     // Efficiency plot
     effL1TrkObj = fs->make<TH1F>("EtEfficiency", "EtEfficiency", 200, 0.5, 200.5);
@@ -440,6 +446,8 @@ void L1TausAnalyzer::checkEfficiency(const T1 & tkObjCollection) {
       phiL1TrkObjMatched  -> Fill(phiTkObj);
       massL1TrkObjMatched -> Fill(massTkObj);
       
+      etVisGenL1ObjMatched -> Fill(genEtsVis.at(i));
+
       etL1TrkObjVsGen->Fill(etTkObj, genEtsVis.at(i));
       
       // Fill turn-on numerator for a given Et threshold
