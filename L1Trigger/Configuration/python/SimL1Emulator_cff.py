@@ -148,6 +148,10 @@ phase2_SimL1Emulator += L1TrackerHTMiss
 phase2_SimL1Emulator += L1TkMuons
 phase2_SimL1Emulator += L1TkGlbMuons
 phase2_SimL1Emulator += L1TkTauFromCalo
+phase2_SimL1Emulator += L1TrackerTaus
+phase2_SimL1Emulator += L1TkEGTaus
+phase2_SimL1Emulator += L1TkCaloTaus
+
 
 # PF Candidates
 # ########################################################################

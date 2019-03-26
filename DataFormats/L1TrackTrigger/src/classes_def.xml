@@ -98,6 +98,32 @@
   <class name="edm::Wrapper<std::vector<l1t::L1TkTauParticle> >"/>
   <class name="edm::Ref<std::vector<l1t::L1TkTauParticle>,l1t::L1TkTauParticle,edm::refhelper::FindUsingAdvance<std::vector<l1t::L1TkTauParticle>,l1t::L1TkTauParticle> >"/>
 
+  <class name="l1t::L1TkEGTauParticle" ClassVersion="14">
+   <version ClassVersion="15" checksum="2553371049"/>
+   <version ClassVersion="14" checksum="2553371049"/>
+  </class>
+  <class name="std::vector<l1t::L1TkEGTauParticle>"/>
+  <class name="edm::Wrapper<std::vector<l1t::L1TkEGTauParticle> >"/>
+  <class name="edm::Ref<std::vector<l1t::L1TkEGTauParticle>,l1t::L1TkEGTauParticle,edm::refhelper::FindUsingAdvance<std::vector<l1t::L1TkEGTauParticle>,l1t::L1TkEGTauParticle> >"/>
+
+  <class name="l1t::L1TrkTauParticle" ClassVersion="14">
+   <version ClassVersion="15" checksum="2199737658"/>
+   <version ClassVersion="14" checksum="2199737658"/>
+  </class>
+  <class name="std::vector<l1t::L1TrkTauParticle>"/>
+  <class name="edm::Wrapper<std::vector<l1t::L1TrkTauParticle> >"/>
+  <class name="edm::Ref<std::vector<l1t::L1TrkTauParticle>,l1t::L1TrkTauParticle,edm::refhelper::FindUsingAdvance<std::vector<l1t::L1TrkTauParticle>,l1t::L1TrkTauParticle> >"/>
+
+  <class name="l1t::L1CaloTkTauParticle" ClassVersion="17">
+   <version ClassVersion="17" checksum="4265295581"/> 
+   <version ClassVersion="17" checksum="1859218518"/> 
+   <version ClassVersion="16" checksum="3866766711"/> 
+   <version ClassVersion="15" checksum="3464188151"/>
+   <version ClassVersion="14" checksum="848433433"/>
+  </class>
+  <class name="std::vector<l1t::L1CaloTkTauParticle>"/>
+  <class name="edm::Wrapper<std::vector<l1t::L1CaloTkTauParticle> >"/>
+  <class name="edm::Ref<std::vector<l1t::L1CaloTkTauParticle>,l1t::L1CaloTkTauParticle,edm::refhelper::FindUsingAdvance<std::vector<l1t::L1CaloTkTauParticle>,l1t::L1CaloTkTauParticle> >"/>
 
 </lcgdict>
 
