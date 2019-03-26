@@ -149,6 +149,8 @@ private:
   std::vector<float>* m_trk_z0;
   std::vector<float>* m_trk_chi2; 
   std::vector<int>*   m_trk_nstub;
+  std::vector<float>* m_trk_stubPtConsistency;
+  std::vector<float>* m_trk_RInv;
   std::vector<int>*   m_trk_genuine;
   std::vector<int>*   m_trk_loose;
   std::vector<int>*   m_trk_unknown;
@@ -291,6 +293,8 @@ void L1TrackNtupleMaker::beginJob()
   m_trk_d0    = new std::vector<float>;
   m_trk_chi2  = new std::vector<float>;
   m_trk_nstub = new std::vector<int>;
+  m_trk_stubPtConsistency = new std::vector<float>;
+  m_trk_RInv         = new std::vector<float>;
   m_trk_genuine      = new std::vector<int>;
   m_trk_loose        = new std::vector<int>;
   m_trk_unknown      = new std::vector<int>;
@@ -346,7 +350,7 @@ void L1TrackNtupleMaker::beginJob()
 
 
   // ntuple
-  eventTree = fs->make<TTree>("eventTree", "Event tree");
+  eventTree = fs->make<TTree>("L1TrackTree", "L1 Track tree");
 
   if (SaveAllTracks) {
     eventTree->Branch("trk_pt",    &m_trk_pt);
@@ -356,6 +360,8 @@ void L1TrackNtupleMaker::beginJob()
     eventTree->Branch("trk_z0",    &m_trk_z0);
     eventTree->Branch("trk_chi2",  &m_trk_chi2);
     eventTree->Branch("trk_nstub", &m_trk_nstub);
+    eventTree->Branch("trk_stubPtConsistency", &m_trk_stubPtConsistency);
+    eventTree->Branch("trk_RInv",  &m_trk_RInv);
 
     eventTree->Branch("trk_genuine",      &m_trk_genuine);
     eventTree->Branch("trk_loose",        &m_trk_loose);
@@ -441,6 +447,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_z0->clear();
     m_trk_chi2->clear();
     m_trk_nstub->clear();
+    m_trk_stubPtConsistency->clear();
+    m_trk_RInv->clear();
     m_trk_genuine->clear();
     m_trk_loose->clear();
     m_trk_unknown->clear();
@@ -681,7 +689,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 
       float tmp_trk_chi2 = iterL1Track->getChi2(L1Tk_nPar);
       int tmp_trk_nstub  = (int) iterL1Track->getStubRefs().size();
-
+      float tmp_trk_stubPtConsistency = iterL1Track->getStubPtConsistency(L1Tk_nPar);
+      float tmp_trk_RInv = iterL1Track->getRInv(L1Tk_nPar);
 
       // ----------------------------------------------------------------------------------------------
       // loop over stubs on tracks
@@ -742,6 +751,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       else m_trk_d0->push_back(999.);
       m_trk_chi2 ->push_back(tmp_trk_chi2);
       m_trk_nstub->push_back(tmp_trk_nstub);
+      m_trk_stubPtConsistency->push_back(tmp_trk_stubPtConsistency);
+      m_trk_RInv->push_back(tmp_trk_RInv);
       m_trk_genuine->push_back(tmp_trk_genuine);
       m_trk_loose->push_back(tmp_trk_loose);
       m_trk_unknown->push_back(tmp_trk_unknown);
@@ -946,6 +957,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	       << " phi = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).phi()
 	       << " chi2 = " << matchedTracks.at(it)->getChi2(L1Tk_nPar) 
 	       << " consistency = " << matchedTracks.at(it)->getStubPtConsistency(L1Tk_nPar) 
+	       << " RInv = " << matchedTracks.at(it)->getRInv(L1Tk_nPar)
 	       << " z0 = " << matchedTracks.at(it)->getPOCA(L1Tk_nPar).z() 
 	       << " nstub = " << matchedTracks.at(it)->getStubRefs().size();
 	  if (tmp_trk_genuine) cout << " (genuine!) " << endl;

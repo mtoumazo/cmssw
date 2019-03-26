@@ -108,7 +108,7 @@ class L1PhaseIITreeProducer : public edm::EDAnalyzer {
                 std::vector< edm::EDGetTokenT<l1t::TauBxCollection> > tauTokens_;
                 edm::EDGetTokenT<l1t::JetBxCollection> jetToken_;
                 edm::EDGetTokenT<l1t::EtSumBxCollection> sumToken_;
-                edm::EDGetTokenT<l1t::MuonBxCollection> muonToken_;
+  // edm::EDGetTokenT<l1t::MuonBxCollection> muonToken_;
 
                 edm::EDGetTokenT<l1t::EGammaBxCollection>  egToken_;
                 edm::EDGetTokenT<l1t::L1TkElectronParticleCollection>  tkEGToken_;
@@ -120,10 +120,10 @@ class L1PhaseIITreeProducer : public edm::EDAnalyzer {
                 edm::EDGetTokenT<l1t::L1TkElectronParticleCollection>  tkEGLooseTokenHGC_;
                 edm::EDGetTokenT<l1t::L1TkEmParticleCollection>  tkEMTokenHGC_;
 
-                edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonToken_;
-                edm::EDGetTokenT<l1t::L1TkGlbMuonParticleCollection> TkGlbMuonToken_;
-                edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonStubsTokenBMTF_;
-                edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonStubsTokenEMTF_;
+  // edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonToken_;
+  // edm::EDGetTokenT<l1t::L1TkGlbMuonParticleCollection> TkGlbMuonToken_;
+  // edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonStubsTokenBMTF_;
+  // edm::EDGetTokenT<l1t::L1TkMuonParticleCollection> TkMuonStubsTokenEMTF_;
 
                 edm::EDGetTokenT<l1t::L1TkTauParticleCollection> tkTauToken_;
                 edm::EDGetTokenT<l1t::L1TkJetParticleCollection> tkTrackerJetToken_;
@@ -135,9 +135,9 @@ class L1PhaseIITreeProducer : public edm::EDAnalyzer {
 
                 edm::EDGetTokenT<std::vector<reco::PFJet>> ak4L1PF_;
 
-                edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonKalman_;
-                edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonOverlap_;
-                edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonEndcap_;
+  // edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonKalman_;
+  // edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonOverlap_;
+  // edm::EDGetTokenT<l1t::RegionalMuonCandBxCollection> muonEndcap_;
 
                 edm::EDGetTokenT<std::vector<reco::PFMET> > l1PFMet_;
 
@@ -155,7 +155,7 @@ class L1PhaseIITreeProducer : public edm::EDAnalyzer {
 L1PhaseIITreeProducer::L1PhaseIITreeProducer(const edm::ParameterSet& iConfig){
         jetToken_ = consumes<l1t::JetBxCollection>(iConfig.getUntrackedParameter<edm::InputTag>("jetToken"));
         sumToken_ = consumes<l1t::EtSumBxCollection>(iConfig.getUntrackedParameter<edm::InputTag>("sumToken"));
-        muonToken_ = consumes<l1t::MuonBxCollection>(iConfig.getUntrackedParameter<edm::InputTag>("muonToken"));
+        // muonToken_ = consumes<l1t::MuonBxCollection>(iConfig.getUntrackedParameter<edm::InputTag>("muonToken"));
 
         egToken_ = consumes<l1t::EGammaBxCollection>(iConfig.getParameter<edm::InputTag>("egTokenBarrel"));
         egTokenHGC_ = consumes<l1t::EGammaBxCollection>(iConfig.getParameter<edm::InputTag>("egTokenHGC"));
@@ -173,12 +173,12 @@ L1PhaseIITreeProducer::L1PhaseIITreeProducer(const edm::ParameterSet& iConfig){
         tkEGLooseTokenHGC_ = consumes<l1t::L1TkElectronParticleCollection>(iConfig.getParameter<edm::InputTag>("tkEGLooseTokenHGC"));
         tkEMTokenHGC_ = consumes<l1t::L1TkEmParticleCollection>(iConfig.getParameter<edm::InputTag>("tkEMTokenHGC"));
 
-        TkMuonToken_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonToken"));
+        // TkMuonToken_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonToken"));
 
-        TkGlbMuonToken_ = consumes<l1t::L1TkGlbMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkGlbMuonToken"));
+        // TkGlbMuonToken_ = consumes<l1t::L1TkGlbMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkGlbMuonToken"));
 
-        TkMuonStubsTokenBMTF_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonStubsTokenBMTF"));
-        TkMuonStubsTokenEMTF_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonStubsTokenEMTF"));
+        // TkMuonStubsTokenBMTF_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonStubsTokenBMTF"));
+        // TkMuonStubsTokenEMTF_ = consumes<l1t::L1TkMuonParticleCollection>(iConfig.getParameter<edm::InputTag>("TkMuonStubsTokenEMTF"));
 
         tkTauToken_ = consumes<l1t::L1TkTauParticleCollection>(iConfig.getParameter<edm::InputTag>("tkTauToken"));
 
@@ -196,9 +196,9 @@ L1PhaseIITreeProducer::L1PhaseIITreeProducer(const edm::ParameterSet& iConfig){
 
         ak4L1PF_ = consumes<std::vector<reco::PFJet> > (iConfig.getParameter<edm::InputTag>("ak4L1PF"));
 
-        muonKalman_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonKalman"));
-        muonOverlap_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonOverlap"));
-        muonEndcap_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonEndcap"));
+        // muonKalman_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonKalman"));
+        // muonOverlap_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonOverlap"));
+        // muonEndcap_ = consumes<l1t::RegionalMuonCandBxCollection> (iConfig.getParameter<edm::InputTag>("muonEndcap"));
 
         l1PFMet_  = consumes< std::vector<reco::PFMET> > (iConfig.getParameter<edm::InputTag>("l1PFMet"));
 
@@ -243,26 +243,26 @@ L1PhaseIITreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 
         l1Extra->Reset();
 
-        edm::Handle<l1t::MuonBxCollection> muon;
-        edm::Handle<l1t::L1TkGlbMuonParticleCollection> TkGlbMuon;
-        edm::Handle<l1t::L1TkMuonParticleCollection> TkMuon;
-        edm::Handle<l1t::L1TkMuonParticleCollection> TkMuonStubsBMTF;
-        edm::Handle<l1t::L1TkMuonParticleCollection> TkMuonStubsEMTF;
+        // edm::Handle<l1t::MuonBxCollection> muon;
+        // edm::Handle<l1t::L1TkGlbMuonParticleCollection> TkGlbMuon;
+        // edm::Handle<l1t::L1TkMuonParticleCollection> TkMuon;
+        // edm::Handle<l1t::L1TkMuonParticleCollection> TkMuonStubsBMTF;
+        // edm::Handle<l1t::L1TkMuonParticleCollection> TkMuonStubsEMTF;
 
-        iEvent.getByToken(muonToken_, muon);
-        iEvent.getByToken(TkGlbMuonToken_,TkGlbMuon);
-        iEvent.getByToken(TkMuonToken_,TkMuon);
-        iEvent.getByToken(TkMuonStubsTokenBMTF_,TkMuonStubsBMTF);
-        iEvent.getByToken(TkMuonStubsTokenEMTF_,TkMuonStubsEMTF);
+        // iEvent.getByToken(muonToken_, muon);
+        // iEvent.getByToken(TkGlbMuonToken_,TkGlbMuon);
+        // iEvent.getByToken(TkMuonToken_,TkMuon);
+        // iEvent.getByToken(TkMuonStubsTokenBMTF_,TkMuonStubsBMTF);
+        // iEvent.getByToken(TkMuonStubsTokenEMTF_,TkMuonStubsEMTF);
 
-        edm::Handle<l1t::RegionalMuonCandBxCollection> muonsKalman;
-        iEvent.getByToken(muonKalman_,muonsKalman);
+        // edm::Handle<l1t::RegionalMuonCandBxCollection> muonsKalman;
+        // iEvent.getByToken(muonKalman_,muonsKalman);
 
-        edm::Handle<l1t::RegionalMuonCandBxCollection> muonsOverlap;
-        iEvent.getByToken(muonOverlap_,muonsOverlap);
+        // edm::Handle<l1t::RegionalMuonCandBxCollection> muonsOverlap;
+        // iEvent.getByToken(muonOverlap_,muonsOverlap);
 
-        edm::Handle<l1t::RegionalMuonCandBxCollection> muonsEndcap;
-        iEvent.getByToken(muonEndcap_,muonsEndcap);
+        // edm::Handle<l1t::RegionalMuonCandBxCollection> muonsEndcap;
+        // iEvent.getByToken(muonEndcap_,muonsEndcap);
 
 
         edm::Handle<l1t::L1TkTauParticleCollection> tkTau;
@@ -333,30 +333,30 @@ L1PhaseIITreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
         } else {
                 edm::LogWarning("MissingProduct") << "L1Upgrade EtSums not found. Branch will not be filled" << std::endl;
         }
+	
+        // if (muon.isValid()){ 
+        //         l1Extra->SetMuon(muon, maxL1Extra_);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1Upgrade Muons not found. Branch will not be filled" << std::endl;
+        // }
 
-        if (muon.isValid()){ 
-                l1Extra->SetMuon(muon, maxL1Extra_);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1Upgrade Muons not found. Branch will not be filled" << std::endl;
-        }
+        // if (muonsKalman.isValid()){
+        //         l1Extra->SetMuonKF(muonsKalman, maxL1Extra_,1);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
+        // }
 
-        if (muonsKalman.isValid()){
-                l1Extra->SetMuonKF(muonsKalman, maxL1Extra_,1);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
-        }
+        // if (muonsOverlap.isValid()){
+        //         l1Extra->SetMuonKF(muonsOverlap, maxL1Extra_,2);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
+        // }
 
-        if (muonsOverlap.isValid()){
-                l1Extra->SetMuonKF(muonsOverlap, maxL1Extra_,2);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
-        }
-
-        if (muonsEndcap.isValid()){
-                l1Extra->SetMuonKF(muonsEndcap, maxL1Extra_,3);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
-        }
+        // if (muonsEndcap.isValid()){
+        //         l1Extra->SetMuonKF(muonsEndcap, maxL1Extra_,3);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1Upgrade KBMTF Muons not found. Branch will not be filled" << std::endl;
+        // }
 
         for (auto & tautoken: tauTokens_){
                 // keeping the format in the Run2 upgrade producer for this for consistency, even if it is a bit weird
@@ -432,29 +432,29 @@ L1PhaseIITreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
                 edm::LogWarning("MissingProduct") << "L1PhaseII TkCaloJets not found. Branch will not be filled" << std::endl;
         }
 
-        if (TkGlbMuon.isValid()){
-                l1Extra->SetTkGlbMuon(TkGlbMuon, maxL1Extra_);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1PhaseII TkGlbMuons not found. Branch will not be filled" << std::endl;
-        }
-        if (TkMuon.isValid()){
-                l1Extra->SetTkMuon(TkMuon, maxL1Extra_);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1PhaseII TkMuons not found. Branch will not be filled" << std::endl;
-        }
-        if (TkMuonStubsBMTF.isValid()){
-                l1Extra->SetTkMuonStubs(TkMuonStubsBMTF, maxL1Extra_,1);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1PhaseII TkMuonStubsBMTF not found. Branch will not be filled" << std::endl;
-        }
+        // if (TkGlbMuon.isValid()){
+        //         l1Extra->SetTkGlbMuon(TkGlbMuon, maxL1Extra_);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1PhaseII TkGlbMuons not found. Branch will not be filled" << std::endl;
+        // }
+        // if (TkMuon.isValid()){
+        //         l1Extra->SetTkMuon(TkMuon, maxL1Extra_);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1PhaseII TkMuons not found. Branch will not be filled" << std::endl;
+        // }
+        // if (TkMuonStubsBMTF.isValid()){
+        //         l1Extra->SetTkMuonStubs(TkMuonStubsBMTF, maxL1Extra_,1);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1PhaseII TkMuonStubsBMTF not found. Branch will not be filled" << std::endl;
+        // }
 
-        if (TkMuonStubsEMTF.isValid()){
-                  //std::cout<<"Hey! Im getting the endcap stubs" <<std::endl;
-                  //std::cout<<TkMuonStubsEMTF->size()<<std::endl;
-                l1Extra->SetTkMuonStubs(TkMuonStubsEMTF, maxL1Extra_,3);
-        } else {
-                edm::LogWarning("MissingProduct") << "L1PhaseII TkMuonStubsEMTF not found. Branch will not be filled" << std::endl;
-        }
+        // if (TkMuonStubsEMTF.isValid()){
+        //           //std::cout<<"Hey! Im getting the endcap stubs" <<std::endl;
+        //           //std::cout<<TkMuonStubsEMTF->size()<<std::endl;
+        //         l1Extra->SetTkMuonStubs(TkMuonStubsEMTF, maxL1Extra_,3);
+        // } else {
+        //         edm::LogWarning("MissingProduct") << "L1PhaseII TkMuonStubsEMTF not found. Branch will not be filled" << std::endl;
+        // }
 
 
 

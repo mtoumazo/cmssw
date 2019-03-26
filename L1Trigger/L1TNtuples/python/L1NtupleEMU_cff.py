@@ -42,9 +42,9 @@ if eras.stage1L1Trigger.isChosen() or eras.Run2_25ns.isChosen():
 
 L1NtupleEMU = cms.Sequence(
   l1EventTree
-  +l1UpgradeTfMuonEmuTree
-  +l1CaloTowerEmuTree
+#  +l1UpgradeTfMuonEmuTree
+#  +l1CaloTowerEmuTree
   +l1UpgradeEmuTree
 #  +l1MuonEmuTree
-  +l1uGTEmuTree
+#  +l1uGTEmuTree
 )

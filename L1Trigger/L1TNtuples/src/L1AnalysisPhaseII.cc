@@ -163,7 +163,7 @@ void L1Analysis::L1AnalysisPhaseII::SetSum(const edm::Handle<l1t::EtSumBxCollect
 void L1Analysis::L1AnalysisPhaseII::SetEG(const edm::Handle<l1t::EGammaBxCollection> EG, const edm::Handle<l1t::EGammaBxCollection> EGHGC,unsigned maxL1Extra)
 {
   for(l1t::EGammaBxCollection::const_iterator it=EG->begin(); it!=EG->end() && l1extra_.nEG<maxL1Extra; it++){
-    if (it->et() > 5){
+    if (it->et() > 1.5){
     l1extra_.EGEt .push_back(it->et());
     l1extra_.EGEta.push_back(it->eta());
     l1extra_.EGPhi.push_back(it->phi());
@@ -178,7 +178,7 @@ void L1Analysis::L1AnalysisPhaseII::SetEG(const edm::Handle<l1t::EGammaBxCollect
   }
 
   for(l1t::EGammaBxCollection::const_iterator it=EGHGC->begin(); it!=EGHGC->end() && l1extra_.nEG<maxL1Extra; it++){
-    if (it->et() > 10){
+    if (it->et() > 1.5){
     l1extra_.EGEt .push_back(it->et());
     l1extra_.EGEta.push_back(it->eta());
     l1extra_.EGPhi.push_back(it->phi());
