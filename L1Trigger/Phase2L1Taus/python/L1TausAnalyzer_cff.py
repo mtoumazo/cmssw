@@ -27,9 +27,8 @@ TkEGRate.AnalysisOption    = cms.string("Rate")
 CaloTkEff                  = l1TausAnalysis.clone()
 CaloTkEff.ObjectType       = cms.string("CaloTk")
 CaloTkEff.AnalysisOption   = cms.string("Efficiency")
-                           
+CaloTkEff.DRMatching       = cms.double(0.2)
+
 CaloTkRate                 = l1TausAnalysis.clone()
 CaloTkRate.ObjectType      = cms.string("CaloTk")
 CaloTkRate.AnalysisOption  = cms.string("Rate")
-
-

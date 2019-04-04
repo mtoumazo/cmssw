@@ -40,7 +40,7 @@ L1CaloTkTaus = cms.EDProducer("L1CaloTkTauParticleProducer",
         # CaloTau parameters
         L1CaloTauInputTag   = cms.untracked.VInputTag("simCaloStage2Digis"), #same as in L1Trigger/L1TNtuples/python/l1PhaseIITreeProducer_cfi.py
         caloTauEtMin        = cms.double( 0.0 ),
-        calibrateCaloTaus   = cms.bool( True ),
+        calibrateCaloTaus   = cms.bool( False ),
 
         # Isolation parameters
         useVtxIso = cms.bool( True ),
