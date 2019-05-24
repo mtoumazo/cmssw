@@ -16,10 +16,10 @@ L1TrkTauParticle::L1TrkTauParticle()
 
 L1TrkTauParticle::L1TrkTauParticle( const LorentzVector& p4,
 				    const std::vector< L1TTTrackRefPtr >& clustTracks,
-				    float vtxIso )
+				    float iso )
   : L1Candidate  ( p4 ),
     clustTracks_ ( clustTracks ),
-    vtxIso_      ( vtxIso ) 
+    iso_      ( iso ) 
 {
 
 }

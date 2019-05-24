@@ -358,7 +358,7 @@ void L1Analysis::L1AnalysisPhaseII::SetTrkTau(const edm::Handle<l1t::L1TrkTauPar
     l1extra_.tkTauEt.push_back(it->et());
     l1extra_.tkTauEta.push_back(it->eta());
     l1extra_.tkTauPhi.push_back(it->phi());
-    l1extra_.tkTauTrkIso.push_back(it->getVtxIso());
+    l1extra_.tkTauTrkIso.push_back(it->getIso());
     l1extra_.tkTauBx.push_back(0);//it->bx());
     l1extra_.nTkTau++;
   }
@@ -386,7 +386,7 @@ void L1Analysis::L1AnalysisPhaseII::SetTkEGTau(const edm::Handle<l1t::L1TkEGTauP
     l1extra_.tkEGTauEt.push_back(it->et());
     l1extra_.tkEGTauEta.push_back(it->eta());
     l1extra_.tkEGTauPhi.push_back(it->phi());
-    l1extra_.tkEGTauTrkIso.push_back(it->getVtxIso());
+    l1extra_.tkEGTauTrkIso.push_back(it->getIso());
     l1extra_.tkEGTauBx.push_back(0);//it->bx());
     l1extra_.nTkEGTau++;
   }

@@ -23,7 +23,7 @@ L1CaloTkTaus = cms.EDProducer("L1CaloTkTauParticleProducer",
         seedTk_maxDeltaR    = cms.double( 0.15 ),
 
         # Matching parameters
-        matching_maxDeltaR  = cms.double( 0.1 ),
+        matching_maxDeltaR  = cms.double( 0.2 ),
         matchHighestPt      = cms.bool( False ),         
 
         # Signal cone and clustering parameters

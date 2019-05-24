@@ -83,10 +83,10 @@ private:
 			std::vector< unsigned int > clustTracksIndx,
 			bool useIsoCone=false); 
 
-  // float CalculateRelIso(std::vector< L1TTTrackRefPtr > allTracks,
-  // 			std::vector< unsigned int > clustTracksIndx,
-  //                    const float deltaZ0_max, 
-  // 			bool useIsoCone=false); 
+  float CalculateRelIso(std::vector< L1TTTrackRefPtr > allTracks,
+   			std::vector< unsigned int > clustTracksIndx,
+			const float deltaZ0_max, 
+  			bool useIsoCone=false); 
   
   // ----------member data ---------------------------
 
@@ -125,7 +125,10 @@ private:
 
   // Isolation parameters
   bool  cfg_useVtxIso;                 // Usage of vertex isolation on L1TrkTau candidates (no tracks in the isolation cone coming from the same vertex with the seed track)
+  bool  cfg_useRelIso;                 // Usage of relative isolation on L1TrkTau candidates (the fraction of the scalar pT sum of isolation cone tracks which have a z0 close to the seed over the total pT of the candidate to be small)
   float cfg_vtxIso_WP;                 // Working point of vertex isolation (no isolation cone track with |dz0| <= cfg_vtxIso_WP)
+  float cfg_relIso_WP;                 // Working point of relative isolation (sumPt (iso-tracks)/seedPt <= cfg_relIso_WP)
+  float cfg_relIso_dz0;                // Maximum dz0 of the isolation cone tracks (with the seed track) which will be considered for the calculation of the relative isolation
 
   const edm::EDGetTokenT<std::vector<TTTrack< Ref_Phase2TrackerDigi_ > > > trackToken;
   
@@ -170,8 +173,11 @@ L1TrkTauParticleProducer::L1TrkTauParticleProducer(const edm::ParameterSet& iCon
   cfg_maxInvMass_trks = (float)iConfig.getParameter<double>("maxInvMass_trks");
    
   // Isolation parameters
-  cfg_useVtxIso = (bool)iConfig.getParameter<bool>("useVtxIso");
-  cfg_vtxIso_WP = (float)iConfig.getParameter<double>("vtxIso_WP");
+  cfg_useVtxIso  = (bool)iConfig.getParameter<bool>("useVtxIso");
+  cfg_useRelIso  = (bool)iConfig.getParameter<bool>("useRelIso");
+  cfg_vtxIso_WP  = (float)iConfig.getParameter<double>("vtxIso_WP");
+  cfg_relIso_WP  = (float)iConfig.getParameter<double>("relIso_WP");
+  cfg_relIso_dz0 = (float)iConfig.getParameter<double>("relIso_dz0");
 
   produces<L1TrkTauParticleCollection>(label);
 }
@@ -351,19 +357,35 @@ L1TrkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
       p4_trks += p4_tmp;
     }
       
-    // Calculate Isolation
-    float vtxIso = CalculateVtxIso(SelTTTrackPtrs, TrackClusterIndx, cfg_isoCone_useCone);
-    
-    // Build the tau candidate
+
+    // Build the tau candidate  & calculate isolation 
     p4_total = p4_trks;
-    L1TrkTauParticle trkTau(p4_total, TrackCluster, vtxIso);
-    
+    float vtxIso = 999.9;
+    float relIso = 0.0;
+
+    L1TrkTauParticle trkTau(p4_total, TrackCluster, -1.0);
+  
+    if (cfg_useVtxIso) {
+      vtxIso = CalculateVtxIso(SelTTTrackPtrs, TrackClusterIndx, cfg_isoCone_useCone);
+      trkTau.setIso(vtxIso);
+    }
+    else if (cfg_useRelIso) {
+     relIso = CalculateRelIso(SelTTTrackPtrs, TrackClusterIndx, cfg_relIso_dz0, cfg_isoCone_useCone);
+     trkTau.setIso(relIso);
+    }
+       
     // Apply Mass cut
     if (p4_trks.M() > cfg_maxInvMass_trks) continue;
     
     // Apply Isolation
     if (cfg_useVtxIso) {
       if ( vtxIso > cfg_vtxIso_WP ) result -> push_back( trkTau );
+    }
+    else if (cfg_useRelIso) {
+      if ( relIso < cfg_relIso_WP ) result -> push_back( trkTau );
+    }
+    else {
+      result -> push_back( trkTau );
     }
     
   }// End-loop: All the L1TTTracks
@@ -375,8 +397,8 @@ L1TrkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
   
 }
 
-
 // --------------------------------------------------------------------------------------
+
 void L1TrkTauParticleProducer::GetShrinkingConeSizes(float tk_pt,
 						   const float shrinkCone_Constant,
 						   const float sigCone_dRCutoff,
@@ -455,10 +477,59 @@ float L1TrkTauParticleProducer::CalculateVtxIso(std::vector< L1TTTrackRefPtr > a
 
   return vtxIso;
   
-  
-  
 }  
 
+// --------------------------------------------------------------------------------------
+
+float L1TrkTauParticleProducer::CalculateRelIso(std::vector< L1TTTrackRefPtr > allTracks,
+   			std::vector< unsigned int > clustTracksIndx,
+			const float deltaZ0_max, 
+  			bool useIsoCone) {
+
+  // Initializations
+  float deltaR;
+  float ptSum = 0.0;
+  float relIso = -1.0;
+
+  // Seed track properties
+  L1TTTrackRefPtr seedTrack = allTracks.at(clustTracksIndx.at(0));
+  float seedPt   = seedTrack->getMomentum(cfg_tk_nFitParams).perp();
+  float seedEta  = seedTrack->getMomentum(cfg_tk_nFitParams).eta();
+  float seedPhi  = seedTrack->getMomentum(cfg_tk_nFitParams).phi();
+  float seedz0   = seedTrack->getPOCA(cfg_tk_nFitParams).z();
+  
+  // For-loop: All the Tracks
+  for (unsigned int i=0; i < allTracks.size(); i++) {
+
+    L1TTTrackRefPtr iTrk = allTracks.at(i);
+    float iPt   = iTrk->getMomentum(cfg_tk_nFitParams).perp();
+    float iEta  = iTrk->getMomentum(cfg_tk_nFitParams).eta();
+    float iPhi  = iTrk->getMomentum(cfg_tk_nFitParams).phi();
+    float iz0   = iTrk->getPOCA(cfg_tk_nFitParams).z();
+        
+    if (useIsoCone) {
+      // Check if the track is clustered in the tau candidate
+      bool clustered = false;
+      
+      for (unsigned int j=0; j < clustTracksIndx.size(); j++) {
+	if (i == clustTracksIndx.at(j)) clustered = true;
+      }
+      if (clustered) continue;	
+    }
+    
+    // Check if the track is in the iso-cone
+    if (fabs(iz0-seedz0) > deltaZ0_max ) continue;
+
+    deltaR = reco:: deltaR(seedEta, seedPhi, iEta, iPhi);
+    
+    if (deltaR > isoCone_dRMin && deltaR < cfg_isoCone_dRMax) ptSum += iPt;   
+  } // End-loop: All the Tracks
+  
+  relIso = ptSum / seedPt;
+
+  return relIso;
+  
+}  
 
 // ------------ method called once each job just before starting event loop  ------------
 void

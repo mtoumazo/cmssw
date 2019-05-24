@@ -67,6 +67,7 @@ public:
 
   float CorrectedEta(float eta, float zv); //TODO: double check
   float CalibrateCaloTau(float Et, float Eta);
+  math::XYZTLorentzVector CalibratedCaloTauP4( Tau caloTau, float caloEt );
   float findClosest(float arr[], int n, float target);
   float getClosest(float val1, float val2, float target);
 
@@ -357,10 +358,10 @@ void L1CaloTkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSe
       math::XYZTLorentzVector sigTks_p4; // track-based four-momentum
       double px = matchedTrack->getMomentum().x();
       double py = matchedTrack->getMomentum().y();
-	  double pz = matchedTrack->getMomentum().z();
-	  double e  = sqrt(px*px+py*py+pz*pz+pionMass*pionMass);
-	  sigTks_p4.SetCoordinates(px,py,pz,e);
-	  
+      double pz = matchedTrack->getMomentum().z();
+      double e  = sqrt(px*px+py*py+pz*pz+pionMass*pionMass);
+      sigTks_p4.SetCoordinates(px,py,pz,e);
+      
       // Loop over tracks to select signal and isolation cone tracks
       bool isSignalTk;
       for ( unsigned int i=0; i < SigConeTTTrackPtrs.size(); i++ ){
@@ -377,36 +378,36 @@ void L1CaloTkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSe
           // Add tracks (and sum four-momenta) up to tau invariant mass
           math::XYZTLorentzVector p4tmp;
           px = iTrk->getMomentum().x();
-	      py = iTrk->getMomentum().y();
-	      pz = iTrk->getMomentum().z();
-	      e  = sqrt(px*px+py*py+pz*pz+pionMass*pionMass);
-	      p4tmp.SetCoordinates(px,py,pz,e);
-	      sigTks_p4 += p4tmp;
+	  py = iTrk->getMomentum().y();
+	  pz = iTrk->getMomentum().z();
+	  e  = sqrt(px*px+py*py+pz*pz+pionMass*pionMass);
+	  p4tmp.SetCoordinates(px,py,pz,e);
+	  sigTks_p4 += p4tmp;
           if (sigTks_p4.M() > cfg_sigConeTks_maxInvMass) {
-              sigTks_p4 -= p4tmp;
+	    sigTks_p4 -= p4tmp;
           }
           else {
-//           std::cout << "Adding track with dR = " << dR << " and pT = " << sqrt(px*px+py*py) << "and E = " << e << std::endl;
-           sigConeTks.push_back(iTrk);
-           isSignalTk = true;               
+	    //           std::cout << "Adding track with dR = " << dR << " and pT = " << sqrt(px*px+py*py) << "and E = " << e << std::endl;
+	    sigConeTks.push_back(iTrk);
+	    isSignalTk = true;               
           }
         } // end of signal cone checks
         // Pick isolation cone tracks
         if (dR > isolationCone_dRmin && dR < isolationCone_dRmax && !isSignalTk){
-            if (dPOCAz < vtxIso){
-                vtxIso = dPOCAz;
-            }
-            // Calculations for other isolation criteria (relative isolation, jet width)
-            if (dPOCAz < cfg_relIso_maxDeltaZ){
-                double tkPt = iTrk->getMomentum(cfg_tk_nFitParams).perp();
-                isoConePtSum += tkPt;
-                dRtimesPtSum += dR*tkPt;
-                isoConeTks.push_back(iTrk);
-            }
+	  if (dPOCAz < vtxIso){
+	    vtxIso = dPOCAz;
+	  }
+	  // Calculations for other isolation criteria (relative isolation, jet width)
+	  if (dPOCAz < cfg_relIso_maxDeltaZ){
+	    double tkPt = iTrk->getMomentum(cfg_tk_nFitParams).perp();
+	    isoConePtSum += tkPt;
+	    dRtimesPtSum += dR*tkPt;
+	    isoConeTks.push_back(iTrk);
+	  }
         }
         
       } // end of loop over tracks
-               
+      
       // Sanity check:
       if (0) {
 	std::cout << "Signal cone now contains " << sigConeTks.size() << " tracks; signalCone_dRmin = " 
@@ -450,13 +451,13 @@ void L1CaloTkTauParticleProducer::produce(edm::Event& iEvent, const edm::EventSe
       bool bPassVtxIso = (vtxIso > cfg_vtxIso_WP); // orthogonal to RelIso
       if (cfg_useVtxIso && !bPassVtxIso) continue;
 	  
-      const math::XYZTLorentzVector p4 = sigTks_p4;
-      Tau finalTau = *caloTauIter;
-      math::XYZTLorentzVector caloTaucalibratedp4;
-      if(cfg_calibrateCaloTaus)	caloTaucalibratedp4 = finalTau.p4(); // fixme: use CalibrateCaloTauP4(finalTau) 
-      else caloTaucalibratedp4 = finalTau.p4(); 
+      const math::XYZTLorentzVector tracksp4 = sigTks_p4;
 
-      L1CaloTkTauParticle caloTauCandidate(caloTaucalibratedp4, p4, sigConeTks, finalTau, vtxIso); //, caloEt);
+      Tau finalTau = *caloTauIter;
+      math::XYZTLorentzVector caloTaup4 = finalTau.p4();
+      if(cfg_calibrateCaloTaus)	caloTaup4 = CalibratedCaloTauP4(finalTau, caloEt);
+
+      L1CaloTkTauParticle caloTauCandidate(caloTaup4, tracksp4, sigConeTks, finalTau, vtxIso); //, caloEt);
       result -> push_back( caloTauCandidate );
       
   } // end of loop over calo taus
@@ -533,6 +534,30 @@ float L1CaloTkTauParticleProducer::CorrectedEta(float eta, float zv)  {
   float etaprime = -TMath::Log( TMath::Tan( thetaprime / 2.) );
   return etaprime;
   
+}
+
+// --------------------------------------------------------------------------------------
+
+math::XYZTLorentzVector L1CaloTkTauParticleProducer::CalibratedCaloTauP4(Tau caloTau, float caloEt){
+
+  math::XYZTLorentzVector calibratedP4;
+
+  float caloEta  = caloTau.eta();
+  float caloPhi  = caloTau.phi();
+  float caloMass = caloTau.mass();
+  
+  float caloPt = sqrt( (caloEt/(sin(2*atan(exp(-caloEta)))))*(caloEt/(sin(2*atan(exp(-caloEta))))) - caloMass*caloMass )*sin(2*atan(exp(-caloEta)));
+  float px    = caloPt*cos(caloPhi);
+  float py    = caloPt*sin(caloPhi);
+  float theta = 2*atan(exp(-caloEta));
+  float pz    = caloPt/tan(theta);
+  float p     = sqrt(caloPt*caloPt+pz*pz);
+  float e     = sqrt(caloMass*caloMass+p*p);
+  
+  calibratedP4.SetCoordinates(px,py,pz,e);
+  
+  return calibratedP4;
+
 }
 
 // --------------------------------------------------------------------------------------

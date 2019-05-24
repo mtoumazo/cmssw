@@ -12,6 +12,6 @@ l1TausAnalysis = cms.EDAnalyzer( 'L1TausAnalyzer' ,
                                  GenEtVisThreshold_Trigger = cms.double(20.0),
                                  L1EtThreshold             = cms.double(0.0),
                                  L1EtaCutOff               = cms.double(1.5), 
-                                 L1TurnOnThreshold         = cms.double(25.0), 
-                                 DRMatching                = cms.double(0.1) 
+                                 L1TurnOnThreshold         = cms.double(30.0), 
+                                 DRMatching                = cms.double(0.15) 
                                  )
