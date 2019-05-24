@@ -241,6 +241,7 @@ void L1TowerCalibrator::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         L1CaloTower l1Hit;
         l1Hit.ecal_tower_et  = hit.ecal_tower_et;
         l1Hit.hcal_tower_et  = hit.hcal_tower_et;
+        l1Hit.l1eg_tower_et  = hit.l1eg_tower_et;
         // Add min ET thresholds for tower ET
         if (l1Hit.ecal_tower_et < EcalTpEtMin) l1Hit.ecal_tower_et = 0.0;
         if (l1Hit.hcal_tower_et < HcalTpEtMin) l1Hit.hcal_tower_et = 0.0;
@@ -248,6 +249,12 @@ void L1TowerCalibrator::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         l1Hit.tower_iPhi  = hit.tower_iPhi;
         l1Hit.tower_eta  = hit.tower_eta;
         l1Hit.tower_phi  = hit.tower_phi;
+        l1Hit.isBarrel  = hit.isBarrel;
+        l1Hit.n_l1eg = hit.n_l1eg;
+        l1Hit.l1eg_trkSS = hit.l1eg_trkSS;
+        l1Hit.l1eg_trkIso = hit.l1eg_trkIso;
+        l1Hit.l1eg_standaloneSS = hit.l1eg_standaloneSS;
+        l1Hit.l1eg_standaloneIso = hit.l1eg_standaloneIso;
 
         // FIXME There is an error in the L1EGammaCrystalsEmulatorProducer.cc which is
         // returning towers with minimal ECAL energy, and no HCAL energy with these
@@ -280,6 +287,7 @@ void L1TowerCalibrator::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         l1Hit.tower_phi  = it->phi();
         l1Hit.tower_iEta  = -98; // -98 mean HGCal
         l1Hit.tower_iPhi  = -98; 
+        l1Hit.isBarrel  = false;
         (*L1CaloTowerCalibratedCollection).push_back( l1Hit );
         if (debug) printf("HGCal tower iEta %i iPhi %i eta %f phi %f ecal_et %f hcal_et_sum %f\n", (int)l1Hit.tower_iEta, (int)l1Hit.tower_iPhi, l1Hit.tower_eta, l1Hit.tower_phi, l1Hit.ecal_tower_et, l1Hit.hcal_tower_et);
     }
@@ -303,6 +311,7 @@ void L1TowerCalibrator::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         l1Hit.tower_phi  = l1t::CaloTools::towerPhi(id.ieta(), id.iphi());
         l1Hit.tower_iEta  = id.ieta();
         l1Hit.tower_iPhi  = id.iphi();
+        l1Hit.isBarrel  = false;
         (*L1CaloTowerCalibratedCollection).push_back( l1Hit );
 
         if (debug) printf("HCAL HF tower iEta %i iPhi %i eta %f phi %f ecal_et %f hcal_et_sum %f\n", (int)l1Hit.tower_iEta, (int)l1Hit.tower_iPhi, l1Hit.tower_eta, l1Hit.tower_phi, l1Hit.ecal_tower_et, l1Hit.hcal_tower_et);

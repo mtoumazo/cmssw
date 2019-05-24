@@ -34,7 +34,7 @@ Implementation:
 #include <iostream>
 
 #include "DataFormats/L1Trigger/interface/L1JetParticleFwd.h"
-#include "DataFormats/Phase2L1CaloTrig/interface/L1EGCrystalCluster.h"
+//#include "DataFormats/Phase2L1CaloTrig/interface/L1EGCrystalCluster.h"
 #include "DataFormats/Phase2L1CaloTrig/interface/L1CaloJet.h"
 #include "DataFormats/Phase2L1CaloTrig/interface/L1CaloTower.h"
 #include "DataFormats/L1THGCal/interface/HGCalTower.h"
@@ -67,10 +67,10 @@ class L1CaloJetProducer : public edm::EDProducer {
                 reco::Candidate::PolarLorentzVector &p4_2) const;
         float get_hcal_calibration( float &jet_pt, float &ecal_pt,
                 float &ecal_L1EG_jet_pt, float &jet_eta ) const;
-        float apply_barrel_HGCal_boundary_calibration( float &jet_pt, float &hcal_pt, float &ecal_pt,
-                float &ecal_L1EG_jet_pt, int &seed_iEta ) const;
+        float get_tau_pt_calibration( float &tau_pt, float &ecal_pt,
+                float &l1EG_pt, float &n_L1EGs, float &tau_eta ) const;
+        int loose_iso_tau_wp( float &tau_pt, float &tau_iso_et, float &tau_eta ) const;
 
-        //double EtminForStore;
         double HcalTpEtMin;
         double EcalTpEtMin;
         double HGCalHadTpEtMin;
@@ -78,8 +78,9 @@ class L1CaloJetProducer : public edm::EDProducer {
         double HFTpEtMin;
         double EtMinForSeedHit;
         double EtMinForCollection;
+        double EtMinForTauCollection;
 
-        // For fetching calibrations
+        // For fetching jet calibrations
         std::vector< double > jetPtBins;
         std::vector< double > emFractionBinsBarrel;
         std::vector< double > absEtaBinsBarrel;
@@ -91,29 +92,37 @@ class L1CaloJetProducer : public edm::EDProducer {
         std::vector< double > absEtaBinsHF;
         std::vector< double > jetCalibrationsHF;
 
-        // For storing calibrations
+        // For fetching tau calibrations
+        std::vector< double > tauPtBins;
+        std::vector< double > tauAbsEtaBinsBarrel;
+        std::vector< double > tauCalibrationsBarrel;
+        std::vector< edm::ParameterSet > tauL1egInfoBarrel; 
+        std::vector< double > tauAbsEtaBinsHGCal;
+        std::vector< double > tauCalibrationsHGCal;
+        std::vector< edm::ParameterSet > tauL1egInfoHGCal;
+
+        // For storing jet calibrations
         std::vector< std::vector< std::vector< double >>> calibrationsBarrel;
         std::vector< std::vector< std::vector< double >>> calibrationsHGCal;
         std::vector< std::vector< std::vector< double >>> calibrationsHF;
+
+        // For storing tau calibration info
+        std::map< double, std::vector< double >> tauL1egInfoMapBarrel; 
+        std::map< double, std::vector< double >> tauL1egInfoMapHGCal; 
+        std::vector< double > tauL1egValuesBarrel; // To preserve ordering
+        std::vector< double > tauL1egValuesHGCal; // To preserve ordering
+        std::vector< std::vector< std::vector< std::vector< double >>>> tauPtCalibrationsBarrel;
+        std::vector< std::vector< std::vector< std::vector< double >>>> tauPtCalibrationsHGCal;
 
         bool debug;
         edm::EDGetTokenT< L1CaloTowerCollection > l1TowerToken_;
         edm::Handle< L1CaloTowerCollection > l1CaloTowerHandle;
 
-        edm::EDGetTokenT<l1slhc::L1EGCrystalClusterCollection> crystalClustersToken_;
-        edm::Handle<l1slhc::L1EGCrystalClusterCollection> crystalClustersHandle;
-        l1slhc::L1EGCrystalClusterCollection crystalClusters;
 
-        //edm::EDGetTokenT<l1t::HGCalTowerBxCollection> hgcalTowersToken_;
-        //edm::Handle<l1t::HGCalTowerBxCollection> hgcalTowersHandle;
-        //l1t::HGCalTowerBxCollection hgcalTowers;
 
-        //edm::EDGetTokenT<HcalTrigPrimDigiCollection> hcalToken_;
-        //edm::Handle<HcalTrigPrimDigiCollection> hcalTowerHandle;
-        //edm::ESHandle<CaloTPGTranscoder> decoder_;
-
-        // Fit function to scale L1EG Pt to align with electron gen pT
-        //TF1 ptAdjustFunc = TF1("ptAdjustFunc", "([0] + [1]*TMath::Exp(-[2]*x)) * ([3] + [4]*TMath::Exp(-[5]*x))");
+        // TF1s defining tau isolation thresholds
+        TF1 isoTauBarrel = TF1( "isoTauBarrelFunction", "([0] + [1]*TMath::Exp(-[2]*x))");
+        TF1 isoTauHGCal = TF1( "isoTauHGCalFunction", "([0] + [1]*TMath::Exp(-[2]*x))");
 
 
         class l1CaloJetObj
@@ -124,52 +133,90 @@ class L1CaloJetProducer : public edm::EDProducer {
                 reco::Candidate::PolarLorentzVector hcalJetCluster;
                 reco::Candidate::PolarLorentzVector ecalJetCluster;
                 reco::Candidate::PolarLorentzVector seedTower;
-                reco::Candidate::PolarLorentzVector leadingL1EG;
-                reco::Candidate::PolarLorentzVector l1EGjet;
+                //reco::Candidate::PolarLorentzVector leadingL1EG;
+                reco::Candidate::PolarLorentzVector l1egJetCluster;
                 float jetClusterET = 0.;
                 float hcalJetClusterET = 0.;
                 float ecalJetClusterET = 0.;
                 float seedTowerET = 0.;
                 float leadingL1EGET = 0.;
-                float l1EGjetET = 0.;
+                float l1egJetClusterET = 0.;
 
-                // Matrices to map energy per included tower in ET
-                //float total_map[9][9]; // 9x9 array
-                //float ecal_map[9][9]; // 9x9 array
-                //float hcal_map[9][9]; // 9x9 array
-                //float l1eg_map[9][9]; // 9x9 array
+                // For decay mode related checks with CaloTaus
+                std::vector< std::vector< float > > associated_l1EGs;
 
                 int seed_iEta = -99;
                 int seed_iPhi = -99;
 
                 float hcal_seed = 0.;
-                float hcal_3x3 = 0.;
-                float hcal_5x5 = 0.;
+                //float hcal_3x3 = 0.;
+                float hcal_3x5 = 0.;
+                //float hcal_5x5 = 0.;
+                //float hcal_5x7 = 0.;
                 float hcal_7x7 = 0.;
-                float hcal_2x2_1 = 0.;
-                float hcal_2x2_2 = 0.;
-                float hcal_2x2_3 = 0.;
-                float hcal_2x2_4 = 0.;
+                //float hcal_2x3 = 0.;
+                //float hcal_2x3_1 = 0.;
+                //float hcal_2x3_2 = 0.;
+                //float hcal_2x2 = 0.;
+                //float hcal_2x2_1 = 0.;
+                //float hcal_2x2_2 = 0.;
+                //float hcal_2x2_3 = 0.;
+                //float hcal_2x2_4 = 0.;
                 float hcal_nHits = 0.;
 
                 float ecal_seed = 0.;
-                float ecal_3x3 = 0.;
-                float ecal_5x5 = 0.;
+                //float ecal_3x3 = 0.;
+                float ecal_3x5 = 0.;
+                //float ecal_5x5 = 0.;
+                //float ecal_5x7 = 0.;
                 float ecal_7x7 = 0.;
-                float ecal_2x2_1 = 0.;
-                float ecal_2x2_2 = 0.;
-                float ecal_2x2_3 = 0.;
-                float ecal_2x2_4 = 0.;
+                //float ecal_2x3 = 0.;
+                //float ecal_2x3_1 = 0.;
+                //float ecal_2x3_2 = 0.;
+                //float ecal_2x2 = 0.;
+                //float ecal_2x2_1 = 0.;
+                //float ecal_2x2_2 = 0.;
+                //float ecal_2x2_3 = 0.;
+                //float ecal_2x2_4 = 0.;
                 float ecal_nHits = 0.;
 
+                float l1eg_seed = 0.;
+                //float l1eg_3x3 = 0.;
+                float l1eg_3x5 = 0.;
+                //float l1eg_5x5 = 0.;
+                //float l1eg_5x7 = 0.;
+                float l1eg_7x7 = 0.;
+                //float l1eg_2x3 = 0.;
+                //float l1eg_2x3_1 = 0.;
+                //float l1eg_2x3_2 = 0.;
+                //float l1eg_2x2 = 0.;
+                //float l1eg_2x2_1 = 0.;
+                //float l1eg_2x2_2 = 0.;
+                //float l1eg_2x2_3 = 0.;
+                //float l1eg_2x2_4 = 0.;
+                float l1eg_nHits = 0.;
+                float n_l1eg_HoverE_LessThreshold = 0.;
+
+                float l1eg_nL1EGs = 0.;
+                float l1eg_nL1EGs_standaloneSS = 0.;
+                float l1eg_nL1EGs_standaloneIso = 0.;
+                float l1eg_nL1EGs_trkMatchSS = 0.;
+                float l1eg_nL1EGs_trkMatchIso = 0.;
+
                 float total_seed = 0.;
-                float total_3x3 = 0.;
-                float total_5x5 = 0.;
+                //float total_3x3 = 0.;
+                float total_3x5 = 0.;
+                //float total_5x5 = 0.;
+                //float total_5x7 = 0.;
                 float total_7x7 = 0.;
-                float total_2x2_1 = 0.;
-                float total_2x2_2 = 0.;
-                float total_2x2_3 = 0.;
-                float total_2x2_4 = 0.;
+                //float total_2x3 = 0.;
+                //float total_2x3_1 = 0.;
+                //float total_2x3_2 = 0.;
+                //float total_2x2 = 0.;
+                //float total_2x2_1 = 0.;
+                //float total_2x2_2 = 0.;
+                //float total_2x2_3 = 0.;
+                //float total_2x2_4 = 0.;
                 float total_nHits = 0.;
 
                 void Init()
@@ -178,7 +225,7 @@ class L1CaloJetProducer : public edm::EDProducer {
                     SetHcalJetClusterP4( 0., 0., 0., 0. );
                     SetEcalJetClusterP4( 0., 0., 0., 0. );
                     SetSeedP4( 0., 0., 0., 0. );
-                    SetLeadingL1EGP4( 0., 0., 0., 0. );
+                    //SetLeadingL1EGP4( 0., 0., 0., 0. );
                     SetL1EGJetP4( 0., 0., 0., 0. );
                 }
 
@@ -210,19 +257,19 @@ class L1CaloJetProducer : public edm::EDProducer {
                     this->seedTower.SetPhi( phi );
                     this->seedTower.SetM( mass );
                 }
-                void SetLeadingL1EGP4( double pt, double eta, double phi, double mass )
-                {
-                    this->leadingL1EG.SetPt( pt );
-                    this->leadingL1EG.SetEta( eta );
-                    this->leadingL1EG.SetPhi( phi );
-                    this->leadingL1EG.SetM( mass );
-                }
+                //void SetLeadingL1EGP4( double pt, double eta, double phi, double mass )
+                //{
+                //    this->leadingL1EG.SetPt( pt );
+                //    this->leadingL1EG.SetEta( eta );
+                //    this->leadingL1EG.SetPhi( phi );
+                //    this->leadingL1EG.SetM( mass );
+                //}
                 void SetL1EGJetP4( double pt, double eta, double phi, double mass )
                 {
-                    this->l1EGjet.SetPt( pt );
-                    this->l1EGjet.SetEta( eta );
-                    this->l1EGjet.SetPhi( phi );
-                    this->l1EGjet.SetM( mass );
+                    this->l1egJetCluster.SetPt( pt );
+                    this->l1egJetCluster.SetEta( eta );
+                    this->l1egJetCluster.SetPhi( phi );
+                    this->l1egJetCluster.SetM( mass );
                 }
         };
                 
@@ -266,15 +313,22 @@ class L1CaloJetProducer : public edm::EDProducer {
                 float tower_phi = -99;
                 float ecal_tower_et=0.;
                 float hcal_tower_et=0.;
+                float l1eg_tower_et=0.;
                 float total_tower_et=0.;
-                float total_tower_plus_L1EGs_et=0.;
+                //float total_tower_plus_L1EGs_et=0.;
                 bool stale=false; // Hits become stale once used in clustering algorithm to prevent overlap in clusters
                 bool isBarrel=true; // Defaults to a barrel hit
+
+                // L1EG info
+                int n_l1eg = 0;
+                int l1eg_trkSS = 0;
+                int l1eg_trkIso = 0;
+                int l1eg_standaloneSS = 0;
+                int l1eg_standaloneIso = 0;
         };
 };
 
 L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
-    //EtminForStore(iConfig.getParameter<double>("EtminForStore")),
     HcalTpEtMin(iConfig.getParameter<double>("HcalTpEtMin")), // Should default to 0 MeV
     EcalTpEtMin(iConfig.getParameter<double>("EcalTpEtMin")), // Should default to 0 MeV
     HGCalHadTpEtMin(iConfig.getParameter<double>("HGCalHadTpEtMin")), // Should default to 0 MeV
@@ -282,6 +336,7 @@ L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
     HFTpEtMin(iConfig.getParameter<double>("HFTpEtMin")), // Should default to 0 MeV
     EtMinForSeedHit(iConfig.getParameter<double>("EtMinForSeedHit")), // Should default to 2.5 GeV
     EtMinForCollection(iConfig.getParameter<double>("EtMinForCollection")), // Testing 10 GeV
+    EtMinForTauCollection(iConfig.getParameter<double>("EtMinForTauCollection")), // Testing 10 GeV
     jetPtBins(iConfig.getParameter<std::vector<double>>("jetPtBins")),
     emFractionBinsBarrel(iConfig.getParameter<std::vector<double>>("emFractionBinsBarrel")),
     absEtaBinsBarrel(iConfig.getParameter<std::vector<double>>("absEtaBinsBarrel")),
@@ -292,11 +347,15 @@ L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
     emFractionBinsHF(iConfig.getParameter<std::vector<double>>("emFractionBinsHF")),
     absEtaBinsHF(iConfig.getParameter<std::vector<double>>("absEtaBinsHF")),
     jetCalibrationsHF(iConfig.getParameter<std::vector<double>>("jetCalibrationsHF")),
+    tauPtBins(iConfig.getParameter<std::vector<double>>("tauPtBins")),
+    tauAbsEtaBinsBarrel(iConfig.getParameter<std::vector<double>>("tauAbsEtaBinsBarrel")),
+    tauCalibrationsBarrel(iConfig.getParameter<std::vector<double>>("tauCalibrationsBarrel")),
+    tauL1egInfoBarrel(iConfig.getParameter<std::vector<edm::ParameterSet>>("tauL1egInfoBarrel")),
+    tauAbsEtaBinsHGCal(iConfig.getParameter<std::vector<double>>("tauAbsEtaBinsHGCal")),
+    tauCalibrationsHGCal(iConfig.getParameter<std::vector<double>>("tauCalibrationsHGCal")),
+    tauL1egInfoHGCal(iConfig.getParameter<std::vector<edm::ParameterSet>>("tauL1egInfoHGCal")),
     debug(iConfig.getParameter<bool>("debug")),
-    l1TowerToken_(consumes< L1CaloTowerCollection >(iConfig.getParameter<edm::InputTag>("l1CaloTowers"))),
-    crystalClustersToken_(consumes<l1slhc::L1EGCrystalClusterCollection>(iConfig.getParameter<edm::InputTag>("L1CrystalClustersInputTag")))
-    //hgcalTowersToken_(consumes<l1t::HGCalTowerBxCollection>(iConfig.getParameter<edm::InputTag>("L1HgcalTowersInputTag"))),
-    //hcalToken_(consumes<HcalTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("hcalDigis")))
+    l1TowerToken_(consumes< L1CaloTowerCollection >(iConfig.getParameter<edm::InputTag>("l1CaloTowers")))
 
 {
     if (debug) printf("L1CaloJetProducer setup\n");
@@ -304,20 +363,9 @@ L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
     //produces<l1slhc::L1CaloJetsCollection>("L1CaloJetsWithCuts");
     //produces<l1extra::L1JetParticleCollection>("L1CaloClusterCollectionWithCuts");
     produces< BXVector<l1t::Jet> >("L1CaloJetCollectionBXV");
+    produces< BXVector<l1t::Tau> >("L1CaloTauCollectionBXV");
 
 
-    //// Fit parameters measured on 11 Aug 2018, using 500 MeV threshold for ECAL TPs
-    //// working in CMSSW 10_1_7
-    //// Adjustments to be applied to reco cluster pt
-    //// L1EG cut working points are still a function of non-calibrated pT
-    //// First order corrections
-    //ptAdjustFunc.SetParameter( 0, 1.06 );
-    //ptAdjustFunc.SetParameter( 1, 0.273 );
-    //ptAdjustFunc.SetParameter( 2, 0.0411 );
-    //// Residuals
-    //ptAdjustFunc.SetParameter( 3, 1.00 );
-    //ptAdjustFunc.SetParameter( 4, 0.567 );
-    //ptAdjustFunc.SetParameter( 5, 0.288 );
     if(debug) printf("\nHcalTpEtMin = %f\nEcalTpEtMin = %f\n", HcalTpEtMin, EcalTpEtMin);
     //for( unsigned int i = 0; i < emFractionBins.size(); i++)
     //{
@@ -333,8 +381,8 @@ L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
     //}
 
     // Fill the calibration 3D vector
-    // Dimension 1 is EM Fraction bin
-    // Dimension 2 is AbsEta bin
+    // Dimension 1 is AbsEta bin
+    // Dimension 2 is EM Fraction bin
     // Dimension 3 is jet pT bin which is filled with the actual callibration value
     // size()-1 b/c the inputs have lower and upper bounds
     // Do Barrel, then HGCal, then HF
@@ -401,51 +449,109 @@ L1CaloJetProducer::L1CaloJetProducer(const edm::ParameterSet& iConfig) :
     }
     if(debug) printf("\nLoading HF calibrations: Loaded %i values vs. size() of input calibration file: %i", index, int(jetCalibrationsHF.size()));
 
-    //index = 0;
-    //printf("Barrel Calibrations:\n");
-    //for( unsigned int i = 0; i < calibrationsBarrel.size(); i++)
-    //{
-    //    for( unsigned int j = 0; j < calibrationsBarrel[i].size(); j++)
-    //    {
-    //        for( unsigned int k = 0; k < calibrationsBarrel[i][j].size(); k++)
-    //        {
-    //            printf("i %i j %i k %i index %i: Input Value %f   Loaded Value %f   Input/Loaded %f\n", 
-    //                int(i), int(j), int(k), int(index), jetCalibrationsBarrel.at(index),
-    //                calibrationsBarrel[ i ][ j ][ k ], jetCalibrationsBarrel.at(index) / calibrationsBarrel[ i ][ j ][ k ] );
-    //            index++;
-    //        }
-    //    }
-    //}
-    //index = 0;
-    //printf("HGCal Calibrations:\n");
-    //for( unsigned int i = 0; i < calibrationsHGCal.size(); i++)
-    //{
-    //    for( unsigned int j = 0; j < calibrationsHGCal[i].size(); j++)
-    //    {
-    //        for( unsigned int k = 0; k < calibrationsHGCal[i][j].size(); k++)
-    //        {
-    //            printf("i %i j %i k %i index %i: Input Value %f   Loaded Value %f   Input/Loaded %f\n", 
-    //                int(i), int(j), int(k), int(index), jetCalibrationsHGCal.at(index),
-    //                calibrationsHGCal[ i ][ j ][ k ], jetCalibrationsHGCal.at(index) / calibrationsHGCal[ i ][ j ][ k ] );
-    //            index++;
-    //        }
-    //    }
-    //}
-    //index = 0;
-    //printf("HF Calibrations:\n");
-    //for( unsigned int i = 0; i < calibrationsHF.size(); i++)
-    //{
-    //    for( unsigned int j = 0; j < calibrationsHF[i].size(); j++)
-    //    {
-    //        for( unsigned int k = 0; k < calibrationsHF[i][j].size(); k++)
-    //        {
-    //            printf("i %i j %i k %i index %i: Input Value %f   Loaded Value %f   Input/Loaded %f\n", 
-    //                int(i), int(j), int(k), int(index), jetCalibrationsHF.at(index),
-    //                calibrationsHF[ i ][ j ][ k ], jetCalibrationsHF.at(index) / calibrationsHF[ i ][ j ][ k ] );
-    //            index++;
-    //        }
-    //    }
-    //}
+
+    // Load Tau L1EG-base calibration info into maps
+    for( auto& first : tauL1egInfoBarrel )
+    {
+        if(debug)
+        {
+            printf( "barrel l1egCount = %f\n", first.getParameter<double>("l1egCount") ); 
+            for ( auto& em_frac : first.getParameter<std::vector<double>>("l1egEmFractions") )
+            {
+                printf(" - EM = %.3f\n", em_frac );
+            }
+        }
+        double l1egCount = first.getParameter<double>("l1egCount");
+        std::vector<double> l1egEmFractions = first.getParameter<std::vector<double>>("l1egEmFractions");
+        tauL1egInfoMapBarrel[ l1egCount ] = l1egEmFractions;
+        tauL1egValuesBarrel.push_back( l1egCount );
+    }
+    std::sort(tauL1egValuesBarrel.begin(), tauL1egValuesBarrel.end());
+    for( auto& first : tauL1egInfoHGCal )
+    {
+        if(debug)
+        {
+            printf( "hgcal l1egCount = %f\n", first.getParameter<double>("l1egCount") ); 
+            for ( auto& em_frac : first.getParameter<std::vector<double>>("l1egEmFractions") )
+            {
+                printf(" - EM = %.3f\n", em_frac );
+            }
+        }
+        double l1egCount = first.getParameter<double>("l1egCount");
+        std::vector<double> l1egEmFractions = first.getParameter<std::vector<double>>("l1egEmFractions");
+        tauL1egInfoMapHGCal[ l1egCount ] = l1egEmFractions;
+        tauL1egValuesHGCal.push_back( l1egCount );
+    }
+    std::sort(tauL1egValuesHGCal.begin(), tauL1egValuesHGCal.end());
+    // Fill the calibration 4D vector
+    // Dimension 1 is AbsEta bin
+    // Dimension 2 is L1EG count
+    // Dimension 3 is EM Fraction bin
+    // Dimension 4 is tau pT bin which is filled with the actual callibration value
+    // size()-1 b/c the inputs have lower and upper bounds (except L1EG b/c that is a cound)
+    // Do Barrel, then HGCal
+    //
+    // Note to future developers: be very concious of the order in which the calibrations are printed
+    // out in tool which makse the cfg files.  You need to match that exactly when loading them and
+    // using the calibrations below.
+    index = 0;
+    for( unsigned int abs_eta = 0; abs_eta < tauAbsEtaBinsBarrel.size()-1; abs_eta++)
+    {
+        std::vector< std::vector< std::vector< double >>> l1eg_bins;
+        for( auto &l1eg_info : tauL1egInfoMapBarrel )
+        {
+            std::vector< std::vector< double >> em_bins;
+            for( unsigned int em_frac = 0; em_frac < l1eg_info.second.size()-1; em_frac++)
+            {
+                //printf("\nBarrel l1eg_bin %d em_frac %d (%.3f) abs_eta %d (%.2f)\n", int(l1eg_info.first), em_frac, l1eg_info.second[em_frac], abs_eta, tauAbsEtaBinsBarrel.at(abs_eta));
+                std::vector< double > pt_bin_calibs;
+                for( unsigned int pt = 0; pt < tauPtBins.size()-1; pt++)
+                {
+                    //printf("pt(%d)=%.1f = %.3f, ", pt, tauPtBins.at(pt), tauCalibrationsBarrel.at(index));
+                    pt_bin_calibs.push_back( tauCalibrationsBarrel.at(index) );
+                    index++;
+                }
+                em_bins.push_back( pt_bin_calibs );
+            }
+            l1eg_bins.push_back( em_bins );
+        }
+        tauPtCalibrationsBarrel.push_back( l1eg_bins );
+    }
+    if(debug) printf("\nLoading Barrel calibrations: Loaded %i values vs. size() of input calibration file: %i", index, int(tauCalibrationsBarrel.size()));
+
+    index = 0;
+    for( unsigned int abs_eta = 0; abs_eta < tauAbsEtaBinsHGCal.size()-1; abs_eta++)
+    {
+        std::vector< std::vector< std::vector< double >>> l1eg_bins;
+        for( const auto &l1eg_info : tauL1egInfoMapHGCal )
+        {
+            std::vector< std::vector< double >> em_bins;
+            for( unsigned int em_frac = 0; em_frac < l1eg_info.second.size()-1; em_frac++)
+            {
+                //printf("\nHGCal l1eg_bin %d em_frac %d (%.3f) abs_eta %d (%.2f)\n", int(l1eg_info.first), em_frac, l1eg_info.second[em_frac], abs_eta, tauAbsEtaBinsHGCal.at(abs_eta));
+                std::vector< double > pt_bin_calibs;
+                for( unsigned int pt = 0; pt < tauPtBins.size()-1; pt++)
+                {
+                    //printf("pt(%d)=%.1f = %.3f, ", pt, tauPtBins.at(pt), tauCalibrationsHGCal.at(index));
+                    pt_bin_calibs.push_back( tauCalibrationsHGCal.at(index) );
+                    index++;
+                }
+                em_bins.push_back( pt_bin_calibs );
+            }
+            l1eg_bins.push_back( em_bins );
+        }
+        tauPtCalibrationsHGCal.push_back( l1eg_bins );
+    }
+    if(debug) printf("\nLoading HGCal calibrations: Loaded %i values vs. size() of input calibration file: %i", index, int(tauCalibrationsHGCal.size()));
+
+
+
+    isoTauBarrel.SetParameter( 0, 0.25 );
+    isoTauBarrel.SetParameter( 1, 0.85 );
+    isoTauBarrel.SetParameter( 2, 0.094 );
+    isoTauHGCal.SetParameter( 0, 0.34 );
+    isoTauHGCal.SetParameter( 1, 0.35 );
+    isoTauHGCal.SetParameter( 2, 0.051 );
 
     if (debug) printf("\nL1CaloJetProducer end\n");
 }
@@ -460,21 +566,11 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     //std::unique_ptr<l1slhc::L1CaloJetsCollection> L1CaloJetsWithCuts( new l1slhc::L1CaloJetsCollection );
     //std::unique_ptr<l1extra::L1JetParticleCollection> L1CaloClusterCollectionWithCuts( new l1extra::L1JetParticleCollection );
     std::unique_ptr<BXVector<l1t::Jet>> L1CaloJetCollectionBXV(new l1t::JetBxCollection);
+    std::unique_ptr<BXVector<l1t::Tau>> L1CaloTauCollectionBXV(new l1t::TauBxCollection);
 
 
 
 
-    // L1EGs
-    iEvent.getByToken(crystalClustersToken_,crystalClustersHandle);
-    crystalClusters = (*crystalClustersHandle.product());
-
-    //// HGCal info
-    //iEvent.getByToken(hgcalTowersToken_,hgcalTowersHandle);
-    //hgcalTowers = (*hgcalTowersHandle.product());
-
-    //// HF Tower info
-    //iEvent.getByToken(hcalToken_,hcalTowerHandle);
-    
     // Load the ECAL+HCAL tower sums coming from L1EGammaCrystalsEmulatorProducer.cc
     std::vector< SimpleCaloHit > l1CaloTowers;
     
@@ -485,15 +581,19 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         SimpleCaloHit l1Hit;
         l1Hit.ecal_tower_et  = hit.ecal_tower_et;
         l1Hit.hcal_tower_et  = hit.hcal_tower_et;
+        l1Hit.l1eg_tower_et = hit.l1eg_tower_et;
         // Add min ET thresholds for tower ET
         if (l1Hit.ecal_tower_et < EcalTpEtMin) l1Hit.ecal_tower_et = 0.0;
         if (l1Hit.hcal_tower_et < HcalTpEtMin) l1Hit.hcal_tower_et = 0.0;
-        l1Hit.total_tower_et  = l1Hit.ecal_tower_et + l1Hit.hcal_tower_et;
+        l1Hit.total_tower_et  = l1Hit.ecal_tower_et + l1Hit.hcal_tower_et + l1Hit.l1eg_tower_et;
         l1Hit.tower_iEta  = hit.tower_iEta;
         l1Hit.tower_iPhi  = hit.tower_iPhi;
-
-        if ( abs(l1Hit.tower_iEta ) <= 18 ) l1Hit.isBarrel = true;
-        else l1Hit.isBarrel = false;
+        l1Hit.n_l1eg = hit.n_l1eg;
+        l1Hit.l1eg_trkSS = hit.l1eg_trkSS;
+        l1Hit.l1eg_trkIso = hit.l1eg_trkIso;
+        l1Hit.l1eg_standaloneSS = hit.l1eg_standaloneSS;
+        l1Hit.l1eg_standaloneIso = hit.l1eg_standaloneIso;
+        l1Hit.isBarrel = hit.isBarrel;
 
         // FIXME There is an error in the L1EGammaCrystalsEmulatorProducer.cc which is
         // returning towers with minimal ECAL energy, and no HCAL energy with these
@@ -507,122 +607,12 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         if (debug) printf("Tower iEta %i iPhi %i eta %f phi %f ecal_et %f hcal_et %f total_et %f\n", (int)l1Hit.tower_iEta, (int)l1Hit.tower_iPhi, l1Hit.tower_eta, l1Hit.tower_phi, l1Hit.ecal_tower_et, l1Hit.hcal_tower_et, l1Hit.total_tower_et);
     }
 
-    //// Loop over HGCalTowers and create SimpleCaloHits for them and add to collection
-    //// This iterator is taken from the PF P2 group
-    //// https://github.com/p2l1pfp/cmssw/blob/170808db68038d53794bc65fdc962f8fc337a24d/L1Trigger/Phase2L1ParticleFlow/plugins/L1TPFCaloProducer.cc#L278-L289
-    //for (auto it = hgcalTowers.begin(0), ed = hgcalTowers.end(0); it != ed; ++it)
-    //{
-    //    // skip lowest ET towers
-    //    if (it->etEm() < HGCalEmTpEtMin && it->etHad() < HGCalHadTpEtMin) continue;
-
-    //    SimpleCaloHit l1Hit;
-    //    l1Hit.isBarrel = false;
-    //    l1Hit.ecal_tower_et  = it->etEm();
-    //    l1Hit.hcal_tower_et  = it->etHad();
-    //    l1Hit.total_tower_et  = l1Hit.ecal_tower_et + l1Hit.hcal_tower_et;
-    //    l1Hit.tower_eta  = it->eta();
-    //    l1Hit.tower_phi  = it->phi();
-    //    l1CaloTowers.push_back( l1Hit );
-    //    if (debug) printf("Tower isBarrel %d eta %f phi %f ecal_et %f hcal_et %f total_et %f\n", l1Hit.isBarrel, l1Hit.tower_eta, l1Hit.tower_phi, l1Hit.ecal_tower_et, l1Hit.hcal_tower_et, l1Hit.total_tower_et);
-    //}
-
-
-    //// Loop over Hcal HF tower inputs and create SimpleCaloHits and add to
-    //// l1CaloTowers collection
-    //iSetup.get<CaloTPGRecord>().get(decoder_);
-    //for (const auto & hit : *hcalTowerHandle.product()) {
-    //    HcalTrigTowerDetId id = hit.id();
-    //    double et = decoder_->hcaletValue(hit.id(), hit.t0());
-    //    if (et < HFTpEtMin) continue;
-    //    // Only doing HF so skip outside range
-    //    if ( abs(id.ieta()) < l1t::CaloTools::kHFBegin ) continue;
-    //    if ( abs(id.ieta()) > l1t::CaloTools::kHFEnd ) continue;
-
-    //    SimpleCaloHit l1Hit;
-    //    l1Hit.isBarrel = false;
-    //    l1Hit.ecal_tower_et  = 0.;
-    //    l1Hit.hcal_tower_et  = et;
-    //    l1Hit.total_tower_et  = l1Hit.ecal_tower_et + l1Hit.hcal_tower_et;
-    //    l1Hit.tower_eta  = l1t::CaloTools::towerEta(id.ieta());
-    //    l1Hit.tower_phi  = l1t::CaloTools::towerPhi(id.ieta(), id.iphi());
-    //    l1Hit.tower_iEta  = id.ieta();
-    //    l1Hit.tower_iPhi  = id.iphi();
-    //    l1CaloTowers.push_back( l1Hit );
-
-    //    if (debug) printf("Hcal HF Tower isBarrel %d eta %f phi %f ecal_et %f hcal_et %f total_et %f\n", l1Hit.isBarrel, l1Hit.tower_eta, l1Hit.tower_phi, l1Hit.ecal_tower_et, l1Hit.hcal_tower_et, l1Hit.total_tower_et);
-    //}
-
-
-    // Make simple L1objects from the L1EG input collection with marker for 'stale'
-    // FIXME could later add quality criteria here to help differentiate likely
-    // photons/electrons vs. pions. This could be helpful for L1CaloJets
-    std::vector< simpleL1obj > crystalClustersVect;
-    for (auto EGammaCand : crystalClusters)
-    {
-        simpleL1obj l1egObj;
-        l1egObj.SetP4(EGammaCand.pt(), EGammaCand.eta(), EGammaCand.phi(), 0.);
-        l1egObj.passesStandaloneSS = EGammaCand.GetExperimentalParam("standaloneWP_showerShape");
-        l1egObj.passesStandaloneIso = EGammaCand.GetExperimentalParam("standaloneWP_isolation");
-        l1egObj.passesTrkMatchSS = EGammaCand.GetExperimentalParam("trkMatchWP_showerShape");
-        l1egObj.passesTrkMatchIso = EGammaCand.GetExperimentalParam("trkMatchWP_isolation");
-        crystalClustersVect.push_back( l1egObj );
-        if (debug) printf("L1EG added from emulator: eta %f phi %f pt %f\n", l1egObj.eta(), l1egObj.phi(), l1egObj.pt());
-    }
-
-    // Sorting is unnecessary as we're matching to already built HCAL Jets
-    // but it is interesting to know highest pt L1EG, so sort either way
-    // Sort clusters so we can always pick highest pt cluster to begin with in our jet clustering
-    std::sort(begin(crystalClustersVect), end(crystalClustersVect), [](const simpleL1obj& a,
-            simpleL1obj& b){return a.pt() > b.pt();});
-
-    // Match the L1EGs to their associated tower to calculate a TOTAL energy associated
-    // with a tower: "total_tower_plus_L1EGs_et".  This can be attributed to multiple
-    // L1EGs. Once an L1EG is associated with a tower, mark them as such so they are not
-    // double counted for some reason, use "associated_with_tower".
-    // This associate will be semi-crude, with barrel geometry, a tower is
-    // 0.087 wide, associate them if they are within dEta/dPhi 0.0435.
-    float total_et = 0.0;
-    int total_nTowers = 0;
-    for (auto &l1CaloTower : l1CaloTowers)
-    {
-
-        l1CaloTower.total_tower_plus_L1EGs_et = l1CaloTower.total_tower_et; // Set to total before finding associated L1EGs
-
-        int j = 0;
-        for (auto &l1eg : crystalClustersVect)
-        {
-
-            if (l1eg.associated_with_tower) continue;
-
-            // Could be done very cleanly with iEta/iPhi if we had this from the L1EGs...
-            float d_eta = l1CaloTower.tower_eta - l1eg.eta();
-            float d_phi = reco::deltaPhi( l1CaloTower.tower_phi, l1eg.phi() );
-
-            if ( fabs( d_eta ) > 0.0435 || fabs( d_phi ) > 0.0435 ) continue;
-
-            j++;
-            l1CaloTower.total_tower_plus_L1EGs_et += l1eg.pt();
-            if (debug) printf(" - %i L1EG associated with tower: dEta %f dPhi %f L1EG pT %f\n", j, d_eta, d_phi, l1eg.pt());
-
-            l1eg.associated_with_tower = true;
-
-        }
-
-        total_et += l1CaloTower.total_tower_plus_L1EGs_et;
-        if (l1CaloTower.total_tower_plus_L1EGs_et > 0) total_nTowers++;
-    }
-
-    //for (auto &l1eg : crystalClustersVect)
-    //{
-    //    if (l1eg.associated_with_tower) continue;
-    //    printf(" --- L1EG Not Associated: pt %f eta %f phi %f\n", l1eg.pt(), l1eg.eta(), l1eg.phi());
-    //}
 
 
 
     // Sort the ECAL+HCAL+L1EGs tower sums based on total ET
     std::sort(begin(l1CaloTowers), end(l1CaloTowers), [](const SimpleCaloHit& a,
-            SimpleCaloHit& b){return a.total_tower_plus_L1EGs_et > b.total_tower_plus_L1EGs_et;});
+            SimpleCaloHit& b){return a.total_tower_et > b.total_tower_et;});
 
 
 
@@ -662,7 +652,7 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
             {
                 // Check if the leading unused tower has ET < min for seeding a jet.
                 // If so, stop jet clustering
-                if (l1CaloTower.total_tower_plus_L1EGs_et < EtMinForSeedHit)
+                if (l1CaloTower.total_tower_et < EtMinForSeedHit)
                 {
                     caloJetClusteringFinished = true;
                     continue;
@@ -677,13 +667,8 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                 // 3 4-vectors for ECAL, HCAL, ECAL+HCAL for adding together
                 reco::Candidate::PolarLorentzVector hcalP4( l1CaloTower.hcal_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
                 reco::Candidate::PolarLorentzVector ecalP4( l1CaloTower.ecal_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
+                reco::Candidate::PolarLorentzVector l1egP4( l1CaloTower.l1eg_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
                 reco::Candidate::PolarLorentzVector totalP4( l1CaloTower.total_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
-
-                // Map center at 4,4
-                //caloJetObj.total_map[4][4] = l1CaloTower.total_tower_et; // 9x9 array
-                //caloJetObj.ecal_map[4][4]  = l1CaloTower.ecal_tower_et; // 9x9 array
-                //caloJetObj.hcal_map[4][4]  = l1CaloTower.hcal_tower_et; // 9x9 array
-                //caloJetObj.l1eg_map[4][4]  = l1CaloTower.total_tower_plus_L1EGs_et - l1CaloTower.total_tower_et; // 9x9 array
 
                 if (hcalP4.pt() > 0)
                 {
@@ -696,6 +681,33 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                     caloJetObj.ecal_nHits++;
                     caloJetObj.ecalJetCluster += ecalP4;
                     caloJetObj.ecalJetClusterET += l1CaloTower.ecal_tower_et;
+                }
+                if (l1egP4.pt() > 0) 
+                {
+                    caloJetObj.l1eg_nHits++;
+                    caloJetObj.l1egJetCluster += l1egP4;
+                    caloJetObj.l1egJetClusterET += l1CaloTower.l1eg_tower_et;
+                    caloJetObj.l1eg_nL1EGs += l1CaloTower.n_l1eg;
+
+                    caloJetObj.l1eg_nL1EGs_standaloneSS += l1CaloTower.l1eg_standaloneSS;
+                    caloJetObj.l1eg_nL1EGs_standaloneIso += l1CaloTower.l1eg_standaloneIso;
+                    caloJetObj.l1eg_nL1EGs_trkMatchSS += l1CaloTower.l1eg_trkSS;
+                    caloJetObj.l1eg_nL1EGs_trkMatchIso += l1CaloTower.l1eg_trkIso;
+
+                    if (l1CaloTower.isBarrel)
+                    {
+                        // For decay mode related checks with CaloTaus
+                        // only applicable in the barrel at the moment:
+                        // l1eg pt, HCAL ET, ECAL ET, dEta, dPhi, trkSS, trkIso, standaloneSS, standaloneIso
+                        std::vector< float > l1EG_info = {float(l1egP4.pt()), float(hcalP4.pt()), float(ecalP4.pt()), 0., 0., float(l1CaloTower.l1eg_trkSS),
+                            float(l1CaloTower.l1eg_trkIso), float(l1CaloTower.l1eg_standaloneSS), float(l1CaloTower.l1eg_standaloneIso)};
+                        if (l1EG_info[1] / (l1EG_info[0] + l1EG_info[2]) < 0.25)
+                        {
+                            caloJetObj.n_l1eg_HoverE_LessThreshold++;
+                        }
+                        caloJetObj.associated_l1EGs.push_back( l1EG_info );
+                    }
+
                 }
                 if (totalP4.pt() > 0) 
                 {
@@ -717,36 +729,70 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
                 // Need to add the seed energy to the dR rings
                 caloJetObj.hcal_seed += hcalP4.pt();
-                caloJetObj.hcal_3x3 += hcalP4.pt();
-                caloJetObj.hcal_5x5 += hcalP4.pt();
+                //caloJetObj.hcal_3x3 += hcalP4.pt();
+                caloJetObj.hcal_3x5 += hcalP4.pt();
+                //caloJetObj.hcal_5x5 += hcalP4.pt();
+                //caloJetObj.hcal_5x7 += hcalP4.pt();
                 caloJetObj.hcal_7x7 += hcalP4.pt();
                 caloJetObj.ecal_seed += ecalP4.pt();
-                caloJetObj.ecal_3x3 += ecalP4.pt();
-                caloJetObj.ecal_5x5 += ecalP4.pt();
+                //caloJetObj.ecal_3x3 += ecalP4.pt();
+                caloJetObj.ecal_3x5 += ecalP4.pt();
+                //caloJetObj.ecal_5x5 += ecalP4.pt();
+                //caloJetObj.ecal_5x7 += ecalP4.pt();
                 caloJetObj.ecal_7x7 += ecalP4.pt();
+                caloJetObj.l1eg_seed += l1egP4.pt();
+                //caloJetObj.l1eg_3x3 += l1egP4.pt();
+                caloJetObj.l1eg_3x5 += l1egP4.pt();
+                //caloJetObj.l1eg_5x5 += l1egP4.pt();
+                //caloJetObj.l1eg_5x7 += l1egP4.pt();
+                caloJetObj.l1eg_7x7 += l1egP4.pt();
                 caloJetObj.total_seed += totalP4.pt();
-                caloJetObj.total_3x3 += totalP4.pt();
-                caloJetObj.total_5x5 += totalP4.pt();
+                //caloJetObj.total_3x3 += totalP4.pt();
+                caloJetObj.total_3x5 += totalP4.pt();
+                //caloJetObj.total_5x5 += totalP4.pt();
+                //caloJetObj.total_5x7 += totalP4.pt();
                 caloJetObj.total_7x7 += totalP4.pt();
 
-                // Some discrimination vars, 2x2s including central seed
-                caloJetObj.hcal_2x2_1 += hcalP4.pt();
-                caloJetObj.hcal_2x2_2 += hcalP4.pt();
-                caloJetObj.hcal_2x2_3 += hcalP4.pt();
-                caloJetObj.hcal_2x2_4 += hcalP4.pt();
-                caloJetObj.ecal_2x2_1 += ecalP4.pt();
-                caloJetObj.ecal_2x2_2 += ecalP4.pt();
-                caloJetObj.ecal_2x2_3 += ecalP4.pt();
-                caloJetObj.ecal_2x2_4 += ecalP4.pt();
-                caloJetObj.total_2x2_1 += totalP4.pt();
-                caloJetObj.total_2x2_2 += totalP4.pt();
-                caloJetObj.total_2x2_3 += totalP4.pt();
-                caloJetObj.total_2x2_4 += totalP4.pt();
+                // Some discrimination vars, 2x2s and 2x3 including central seed
+                //caloJetObj.hcal_2x3 += hcalP4.pt();
+                //caloJetObj.hcal_2x3_1 += hcalP4.pt();
+                //caloJetObj.hcal_2x3_2 += hcalP4.pt();
+                //caloJetObj.ecal_2x3 += ecalP4.pt();
+                //caloJetObj.ecal_2x3_1 += ecalP4.pt();
+                //caloJetObj.ecal_2x3_2 += ecalP4.pt();
+                //caloJetObj.l1eg_2x3 += l1egP4.pt();
+                //caloJetObj.l1eg_2x3_1 += l1egP4.pt();
+                //caloJetObj.l1eg_2x3_2 += l1egP4.pt();
+                //caloJetObj.total_2x3 += totalP4.pt();
+                //caloJetObj.total_2x3_1 += totalP4.pt();
+                //caloJetObj.total_2x3_2 += totalP4.pt();
+
+                //caloJetObj.hcal_2x2 += hcalP4.pt();
+                //caloJetObj.hcal_2x2_1 += hcalP4.pt();
+                //caloJetObj.hcal_2x2_2 += hcalP4.pt();
+                //caloJetObj.hcal_2x2_3 += hcalP4.pt();
+                //caloJetObj.hcal_2x2_4 += hcalP4.pt();
+                //caloJetObj.ecal_2x2 += ecalP4.pt();
+                //caloJetObj.ecal_2x2_1 += ecalP4.pt();
+                //caloJetObj.ecal_2x2_2 += ecalP4.pt();
+                //caloJetObj.ecal_2x2_3 += ecalP4.pt();
+                //caloJetObj.ecal_2x2_4 += ecalP4.pt();
+                //caloJetObj.l1eg_2x2 += l1egP4.pt();
+                //caloJetObj.l1eg_2x2_1 += l1egP4.pt();
+                //caloJetObj.l1eg_2x2_2 += l1egP4.pt();
+                //caloJetObj.l1eg_2x2_3 += l1egP4.pt();
+                //caloJetObj.l1eg_2x2_4 += l1egP4.pt();
+                //caloJetObj.total_2x2 += totalP4.pt();
+                //caloJetObj.total_2x2_1 += totalP4.pt();
+                //caloJetObj.total_2x2_2 += totalP4.pt();
+                //caloJetObj.total_2x2_3 += totalP4.pt();
+                //caloJetObj.total_2x2_4 += totalP4.pt();
                 continue;
             }
 
             // Unused l1CaloTowers which are not the initial seed
-            // Depending on seed and tower locations calculate iEta/iPhi or eta/phi comparisons
+            // Depending on seed and tower locations calculate iEta/iPhi or eta/phi comparisons.
+            // The defaults of 99 will automatically fail comparisons for the incorrect regions.
             int hit_iPhi = 99;
             int d_iEta = 99;
             int d_iPhi = 99;
@@ -758,7 +804,7 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                 d_iEta = tower_diEta( caloJetObj.seed_iEta, l1CaloTower.tower_iEta );
                 d_iPhi = tower_diPhi( caloJetObj.seed_iPhi, hit_iPhi );
             }
-            else // either seed or tower are in HGCal, use eta/phi
+            else // either seed or tower are in HGCal or HF, use eta/phi
             {
                 d_eta = caloJetObj.seedTower.eta() - l1CaloTower.tower_eta;
                 d_phi = reco::deltaPhi( caloJetObj.seedTower.phi(), l1CaloTower.tower_phi );
@@ -767,19 +813,18 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
             // 7x7 HCAL Trigger Towers
             // If seeded in barrel and hit is barrel then we can compare iEta/iPhi, else need to use eta/phi
             // in HGCal / transition region
-            if ( (caloJetObj.barrelSeeded && l1CaloTower.isBarrel && abs( d_iEta ) <= 3 && abs( d_iPhi ) <= 3) ||
+            if ( (abs( d_iEta ) <= 3 && abs( d_iPhi ) <= 3) ||
                     ( fabs( d_eta ) < 0.3 && fabs( d_phi ) < 0.3 ) )
             {
+
+                l1CaloTower.stale = true;
+                n_stale++;
 
                 // 3 4-vectors for ECAL, HCAL, ECAL+HCAL for adding together
                 reco::Candidate::PolarLorentzVector hcalP4( l1CaloTower.hcal_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
                 reco::Candidate::PolarLorentzVector ecalP4( l1CaloTower.ecal_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
+                reco::Candidate::PolarLorentzVector l1egP4( l1CaloTower.l1eg_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
                 reco::Candidate::PolarLorentzVector totalP4( l1CaloTower.total_tower_et, l1CaloTower.tower_eta, l1CaloTower.tower_phi, 0.);
-
-                //caloJetObj.total_map[4+d_iEta][4+d_iPhi] = l1CaloTower.total_tower_et; // 9x9 array
-                //caloJetObj.ecal_map[4+d_iEta][4+d_iPhi]  = l1CaloTower.ecal_tower_et; // 9x9 array
-                //caloJetObj.hcal_map[4+d_iEta][4+d_iPhi]  = l1CaloTower.hcal_tower_et; // 9x9 array
-                //caloJetObj.l1eg_map[4+d_iEta][4+d_iPhi]  = l1CaloTower.total_tower_plus_L1EGs_et - l1CaloTower.total_tower_et; // 9x9 array
 
                 if (hcalP4.pt() > 0)
                 {
@@ -793,6 +838,13 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                     caloJetObj.ecalJetCluster += ecalP4;
                     caloJetObj.ecalJetClusterET += l1CaloTower.ecal_tower_et;
                 }
+                if (l1egP4.pt() > 0) 
+                {
+                    caloJetObj.l1eg_nHits++;
+                    caloJetObj.l1egJetCluster += l1egP4;
+                    caloJetObj.l1egJetClusterET += l1CaloTower.l1eg_tower_et;
+                    caloJetObj.l1eg_nL1EGs += l1CaloTower.n_l1eg;
+                }
                 if (totalP4.pt() > 0) 
                 {
                     caloJetObj.total_nHits++;
@@ -804,59 +856,141 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                 if (debug) printf(" ---- hit %i input     p4 pt %f eta %f phi %f\n", cnt, totalP4.pt(), totalP4.eta(), totalP4.phi());
                 if (debug) printf(" ---- hit %i resulting p4 pt %f eta %f phi %f\n", cnt, caloJetObj.jetClusterET, caloJetObj.jetCluster.eta(), caloJetObj.jetCluster.phi());
 
-                l1CaloTower.stale = true;
-                n_stale++;
 
-                if ( abs( d_iEta ) <= 1    && abs( d_iPhi ) <= 1)
+
+                if ( (abs( d_iEta ) == 0    && abs( d_iPhi ) == 0) ||
+                    ( fabs( d_eta ) < 0.043 && fabs( d_phi ) < 0.043 ) )
                 {
                     caloJetObj.hcal_seed += hcalP4.pt();
                     caloJetObj.ecal_seed += ecalP4.pt();
+                    caloJetObj.l1eg_seed += l1egP4.pt();
                     caloJetObj.total_seed += totalP4.pt();
                 }
-                if ( abs( d_iEta ) <= 2    && abs( d_iPhi ) <= 2)
+                //if ( (abs( d_iEta ) <= 1 && abs( d_iPhi ) <= 1) || 
+                //    ( fabs( d_eta ) < 0.13 && fabs( d_phi ) < 0.13 ) )
+                //{
+                //    caloJetObj.hcal_3x3 += hcalP4.pt();
+                //    caloJetObj.ecal_3x3 += ecalP4.pt();
+                //    caloJetObj.l1eg_3x3 += l1egP4.pt();
+                //    caloJetObj.total_3x3 += totalP4.pt();
+                //}
+                if ( (abs( d_iEta ) <= 1 && abs( d_iPhi ) <= 2) || 
+                    ( fabs( d_eta ) < 0.13 && fabs( d_phi ) < 0.22 ) )
                 {
-                    caloJetObj.hcal_3x3 += hcalP4.pt();
-                    caloJetObj.ecal_3x3 += ecalP4.pt();
-                    caloJetObj.total_3x3 += totalP4.pt();
+                    caloJetObj.hcal_3x5 += hcalP4.pt();
+                    caloJetObj.ecal_3x5 += ecalP4.pt();
+                    caloJetObj.l1eg_3x5 += l1egP4.pt();
+                    caloJetObj.total_3x5 += totalP4.pt();
+
+                    // Do this for 3x5 only
+                    if (l1egP4.pt() > 0) 
+                    {
+                        caloJetObj.l1eg_nL1EGs_standaloneSS += l1CaloTower.l1eg_standaloneSS;
+                        caloJetObj.l1eg_nL1EGs_standaloneIso += l1CaloTower.l1eg_standaloneIso;
+                        caloJetObj.l1eg_nL1EGs_trkMatchSS += l1CaloTower.l1eg_trkSS;
+                        caloJetObj.l1eg_nL1EGs_trkMatchIso += l1CaloTower.l1eg_trkIso;
+
+                        // For decay mode related checks with CaloTaus
+                        // only applicable in the barrel at the moment:
+                        // l1eg pt, HCAL ET, ECAL ET, d_iEta, d_iPhi, trkSS, trkIso, standaloneSS, standaloneIso
+                        std::vector< float > l1EG_info = {float(l1egP4.pt()), float(hcalP4.pt()), float(ecalP4.pt()),
+                            float(d_iEta), float(d_iPhi), float(l1CaloTower.l1eg_trkSS), float(l1CaloTower.l1eg_trkIso),
+                            float(l1CaloTower.l1eg_standaloneSS), float(l1CaloTower.l1eg_standaloneIso)};
+                        if (l1EG_info[1] / (l1EG_info[0] + l1EG_info[2]) < 0.25)
+                        {
+                            caloJetObj.n_l1eg_HoverE_LessThreshold++;
+                        }
+                        caloJetObj.associated_l1EGs.push_back( l1EG_info );
+                    }
+
                 }
-                if ( abs( d_iEta ) <= 3    && abs( d_iPhi ) <= 3)
-                {
-                    caloJetObj.hcal_5x5 += hcalP4.pt();
-                    caloJetObj.ecal_5x5 += ecalP4.pt();
-                    caloJetObj.total_5x5 += totalP4.pt();
-                }
-                if ( abs( d_iEta ) <= 4    && abs( d_iPhi ) <= 4)
+                //if ( ( abs( d_iEta ) <= 2 && abs( d_iPhi ) <= 2) || 
+                //    ( fabs( d_eta ) < 0.22 && fabs( d_phi ) < 0.22 ) )
+                //{
+                //    caloJetObj.hcal_5x5 += hcalP4.pt();
+                //    caloJetObj.ecal_5x5 += ecalP4.pt();
+                //    caloJetObj.l1eg_5x5 += l1egP4.pt();
+                //    caloJetObj.total_5x5 += totalP4.pt();
+                //}
+                //if ( ( abs( d_iEta ) <= 2 && abs( d_iPhi ) <= 3) || 
+                //    ( fabs( d_eta ) < 0.22 && fabs( d_phi ) < 0.3 ) )
+                //{
+                //    caloJetObj.hcal_5x7 += hcalP4.pt();
+                //    caloJetObj.ecal_5x7 += ecalP4.pt();
+                //    caloJetObj.l1eg_5x7 += l1egP4.pt();
+                //    caloJetObj.total_5x7 += totalP4.pt();
+                //}
+                if ( (abs( d_iEta ) <= 3 && abs( d_iPhi ) <= 3) || 
+                    ( fabs( d_eta ) < 0.3 && fabs( d_phi ) < 0.3 ) )
                 {
                     caloJetObj.hcal_7x7 += hcalP4.pt();
                     caloJetObj.ecal_7x7 += ecalP4.pt();
+                    caloJetObj.l1eg_7x7 += l1egP4.pt();
                     caloJetObj.total_7x7 += totalP4.pt();
                 }
 
-                // Some discrimination vars, 2x2s including central seed
-                if ( ( d_iEta == 0 || d_iEta == 1 )  &&  ( d_iPhi == 0 || d_iPhi == 1 ) )
-                {
-                    caloJetObj.hcal_2x2_1 += hcalP4.pt();
-                    caloJetObj.ecal_2x2_1 += ecalP4.pt();
-                    caloJetObj.total_2x2_1 += totalP4.pt();
-                }
-                if ( ( d_iEta == 0 || d_iEta == 1 )  &&  ( d_iPhi == 0 || d_iPhi == -1 ) )
-                {
-                    caloJetObj.hcal_2x2_2 += hcalP4.pt();
-                    caloJetObj.ecal_2x2_2 += ecalP4.pt();
-                    caloJetObj.total_2x2_2 += totalP4.pt();
-                }
-                if ( ( d_iEta == 0 || d_iEta == -1 )  &&  ( d_iPhi == 0 || d_iPhi == 1 ) )
-                {
-                    caloJetObj.hcal_2x2_3 += hcalP4.pt();
-                    caloJetObj.ecal_2x2_3 += ecalP4.pt();
-                    caloJetObj.total_2x2_3 += totalP4.pt();
-                }
-                if ( ( d_iEta == 0 || d_iEta == -1 )  &&  ( d_iPhi == 0 || d_iPhi == -1 ) )
-                {
-                    caloJetObj.hcal_2x2_4 += hcalP4.pt();
-                    caloJetObj.ecal_2x2_4 += ecalP4.pt();
-                    caloJetObj.total_2x2_4 += totalP4.pt();
-                }
+                //// Some discrimination vars, 2x2s and 2x3s including central seed
+                //// Barrel first, 2x3
+                //if ( ( d_iEta == 0 || d_iEta == 1 ) && abs(d_iPhi) <= 1 )
+                //{
+                //    caloJetObj.hcal_2x3_1 += hcalP4.pt();
+                //    caloJetObj.ecal_2x3_1 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x3_1 += l1egP4.pt();
+                //    caloJetObj.total_2x3_1 += totalP4.pt();
+                //}
+                //if ( ( d_iEta == 0 || d_iEta == -1 ) && abs(d_iPhi) <= 1 )
+                //{
+                //    caloJetObj.hcal_2x3_2 += hcalP4.pt();
+                //    caloJetObj.ecal_2x3_2 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x3_2 += l1egP4.pt();
+                //    caloJetObj.total_2x3_2 += totalP4.pt();
+                //}
+                //// HGCal / HF
+                //if ( fabs( d_eta ) < 0.087 && fabs( d_phi ) < 0.13 )
+                //{
+                //    caloJetObj.hcal_2x3 += hcalP4.pt();
+                //    caloJetObj.ecal_2x3 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x3 += l1egP4.pt();
+                //    caloJetObj.total_2x3 += totalP4.pt();
+                //}
+
+                //// Now 2x2 Barrel first
+                //if ( ( d_iEta == 0 || d_iEta == 1 ) && ( d_iPhi == 0 || d_iPhi == 1 ) )
+                //{
+                //    caloJetObj.hcal_2x2_1 += hcalP4.pt();
+                //    caloJetObj.ecal_2x2_1 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x2_1 += l1egP4.pt();
+                //    caloJetObj.total_2x2_1 += totalP4.pt();
+                //}
+                //if ( ( d_iEta == 0 || d_iEta == 1 ) && ( d_iPhi == 0 || d_iPhi == -1 ) )
+                //{
+                //    caloJetObj.hcal_2x2_2 += hcalP4.pt();
+                //    caloJetObj.ecal_2x2_2 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x2_2 += l1egP4.pt();
+                //    caloJetObj.total_2x2_2 += totalP4.pt();
+                //}
+                //if ( ( d_iEta == 0 || d_iEta == -1 ) && ( d_iPhi == 0 || d_iPhi == 1 ) )
+                //{
+                //    caloJetObj.hcal_2x2_3 += hcalP4.pt();
+                //    caloJetObj.ecal_2x2_3 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x2_3 += l1egP4.pt();
+                //    caloJetObj.total_2x2_3 += totalP4.pt();
+                //}
+                //if ( ( d_iEta == 0 || d_iEta == -1 ) && ( d_iPhi == 0 || d_iPhi == -1 ) )
+                //{
+                //    caloJetObj.hcal_2x2_4 += hcalP4.pt();
+                //    caloJetObj.ecal_2x2_4 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x2_4 += l1egP4.pt();
+                //    caloJetObj.total_2x2_4 += totalP4.pt();
+                //}
+                //// HGCal / HF
+                //if ( fabs( d_eta ) < 0.087 && fabs( d_phi ) < 0.087 )
+                //{
+                //    caloJetObj.hcal_2x2 += hcalP4.pt();
+                //    caloJetObj.ecal_2x2 += ecalP4.pt();
+                //    caloJetObj.l1eg_2x2 += l1egP4.pt();
+                //    caloJetObj.total_2x2 += totalP4.pt();
+                //}
             }
         }
 
@@ -888,101 +1022,6 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     for (auto &caloJetObj : l1CaloJetObjs)
     {
 
-        // For tracking ecal energy spread
-        float ecal_dR0p1_leading = 0.;
-        float ecal_dR0p05 = 0.;
-        float ecal_dR0p075 = 0.;
-        float ecal_dR0p1 = 0.;
-        float ecal_dR0p125 = 0.;
-        float ecal_dR0p15 = 0.;
-        float ecal_dR0p2 = 0.;
-        float ecal_dR0p3 = 0.;
-        float ecal_dR0p4 = 0.;
-        float ecal_nL1EGs = 0.;
-        float ecal_nL1EGs_standaloneSS = 0.;
-        float ecal_nL1EGs_standaloneIso = 0.;
-        float ecal_nL1EGs_trkMatchSS = 0.;
-        float ecal_nL1EGs_trkMatchIso = 0.;
-
-
-        // We are pT ordered so we will always begin with the highest pT L1EG
-        int cnt = 0;
-        for (auto &l1eg : crystalClustersVect)
-        {
-
-            cnt++;
-            if (l1eg.stale) continue; // skip L1EGs which are already used
-
-            // skip L1EGs outside the dEta/dPhi 0.4 range
-            // cluster w.r.t. HCAL seed so the position doesn't change for every L1EG
-            float d_eta = caloJetObj.seedTower.eta() - l1eg.eta();
-            float d_phi = reco::deltaPhi( caloJetObj.seedTower.phi(), l1eg.phi() );
-            float d_eta_to_leading = -99;
-            float d_phi_to_leading = -99;
-            if ( fabs( d_eta ) > 0.3 || fabs( d_phi ) > 0.3 ) continue; // 7x7
-
-            if (caloJetObj.leadingL1EGET == 0.0) // this is the first L1EG to seed the L1EG ecal jet
-            {
-                caloJetObj.leadingL1EG += l1eg.GetP4();
-                caloJetObj.leadingL1EGET += l1eg.pt();
-                caloJetObj.l1EGjet += l1eg.GetP4();
-                caloJetObj.l1EGjetET += l1eg.pt();
-                caloJetObj.jetCluster += l1eg.GetP4();
-                caloJetObj.jetClusterET += l1eg.pt();
-                if (debug) printf(" -- L1EG %i, seeding input     p4 pt %f eta %f phi %f\n", cnt, l1eg.pt(), l1eg.eta(), l1eg.phi());
-                if (debug) printf(" -- L1EG %i, seeding resulting p4 pt %f eta %f phi %f\n", cnt, caloJetObj.jetClusterET, caloJetObj.jetCluster.eta(), caloJetObj.jetCluster.phi());
-                if (debug) printf(" -- L1EG %i, ecal l1eg result  p4 pt %f eta %f phi %f\n", cnt, caloJetObj.leadingL1EGET, caloJetObj.leadingL1EG.eta(), caloJetObj.leadingL1EG.phi());
-                if (debug) printf(" -- L1EG %i, ecal l1eg result  p4 pt %f eta %f phi %f\n", cnt, caloJetObj.l1EGjetET, caloJetObj.l1EGjet.eta(), caloJetObj.l1EGjet.phi());
-                d_eta_to_leading = 0.;
-                d_phi_to_leading = 0.;
-            }
-            else // subsequent L1EGs
-            {
-                if (debug) printf(" -- L1EG %i, seeding input     p4 pt %f eta %f phi %f\n", cnt, l1eg.pt(), l1eg.eta(), l1eg.phi());
-                if (debug) printf(" -- L1EG %i, seeding resulting p4 pt %f eta %f phi %f\n", cnt, caloJetObj.jetClusterET, caloJetObj.jetCluster.eta(), caloJetObj.jetCluster.phi());
-                if (debug) printf(" -- L1EG %i, ecal l1eg result  p4 pt %f eta %f phi %f\n", cnt, caloJetObj.l1EGjetET, caloJetObj.l1EGjet.eta(), caloJetObj.l1EGjet.phi());
-                caloJetObj.l1EGjet += l1eg.GetP4();
-                caloJetObj.l1EGjetET += l1eg.pt();
-                caloJetObj.jetCluster += l1eg.GetP4();
-                caloJetObj.jetClusterET += l1eg.pt();
-                d_eta_to_leading = caloJetObj.leadingL1EG.eta() - l1eg.eta();
-                d_phi_to_leading = reco::deltaPhi( caloJetObj.leadingL1EG.phi(), l1eg.GetP4().phi() );
-            }
-
-            // For all including the seed and subsequent L1EGs
-            ecal_nL1EGs++;
-            if (l1eg.passesStandaloneSS ) ecal_nL1EGs_standaloneSS++;
-            if (l1eg.passesStandaloneIso ) ecal_nL1EGs_standaloneIso++;
-            if (l1eg.passesTrkMatchSS ) ecal_nL1EGs_trkMatchSS++;
-            if (l1eg.passesTrkMatchIso ) ecal_nL1EGs_trkMatchIso++;
-            l1eg.stale = true;
-
-
-            // Make energy sums in rings, 1 type is centered on highest pT L1EG
-            if ( fabs( d_eta_to_leading ) < 0.1   && fabs( d_phi_to_leading ) < 0.1  )  ecal_dR0p1_leading   += l1eg.GetP4().pt();
-            // Other type is centered on the HCAL jet center
-            if ( fabs( d_eta ) < 0.05  && fabs( d_phi ) < 0.05 )  ecal_dR0p05  += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.075 && fabs( d_phi ) < 0.075)  ecal_dR0p075 += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.1   && fabs( d_phi ) < 0.1  )  ecal_dR0p1   += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.125 && fabs( d_phi ) < 0.125)  ecal_dR0p125 += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.15  && fabs( d_phi ) < 0.15 )  ecal_dR0p15  += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.2   && fabs( d_phi ) < 0.2  )  ecal_dR0p2   += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.3   && fabs( d_phi ) < 0.3  )  ecal_dR0p3   += l1eg.GetP4().pt();
-            if ( fabs( d_eta ) < 0.4   && fabs( d_phi ) < 0.4  )  ecal_dR0p4   += l1eg.GetP4().pt();
-        }
-
-
-
-        // Do barrel to HGCal transition calibrations for situation when
-        // only a portion of the jet can be clustered.
-        // This is temporary until there is a HGCal method to stitch them.
-        // FIXME commented this out to test initial performance w/ HGCal
-        //params["transition_calibration"] = apply_barrel_HGCal_boundary_calibration(
-        //    caloJetObj.jetClusterET,
-        //    caloJetObj.hcalJetClusterET,
-        //    caloJetObj.ecalJetClusterET,
-        //    caloJetObj.l1EGjetET,
-        //    caloJetObj.seed_iEta );
 
 
 
@@ -994,70 +1033,63 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         params["seed_energy"] = caloJetObj.seedTower.energy();
 
         params["hcal_pt"] = caloJetObj.hcalJetClusterET;
-        params["hcal_3x3"] = caloJetObj.hcal_3x3;
-        params["hcal_5x5"] = caloJetObj.hcal_5x5;
+        params["hcal_seed"] = caloJetObj.hcal_seed;
+        //params["hcal_3x3"] = caloJetObj.hcal_3x3;
+        params["hcal_3x5"] = caloJetObj.hcal_3x5;
+        //params["hcal_5x5"] = caloJetObj.hcal_5x5;
+        //params["hcal_5x7"] = caloJetObj.hcal_5x7;
         params["hcal_7x7"] = caloJetObj.hcal_7x7;
-        params["hcal_2x2"] = std::max( caloJetObj.hcal_2x2_1, std::max( caloJetObj.hcal_2x2_2, std::max( caloJetObj.hcal_2x2_3, caloJetObj.hcal_2x2_4 )));
+        //params["hcal_2x3"] = std::max( caloJetObj.hcal_2x3, std::max( caloJetObj.hcal_2x3_1, caloJetObj.hcal_2x3_2 ));
+        //params["hcal_2x2"] = std::max( caloJetObj.hcal_2x2, std::max( caloJetObj.hcal_2x2_1, std::max( caloJetObj.hcal_2x2_2, std::max( caloJetObj.hcal_2x2_3, caloJetObj.hcal_2x2_4 ))));
         params["hcal_nHits"] = caloJetObj.hcal_nHits;
 
+        params["ecal_pt"] = caloJetObj.ecalJetClusterET;
         params["ecal_seed"] = caloJetObj.ecal_seed;
-        params["ecal_3x3"] = caloJetObj.ecal_3x3;
-        params["ecal_5x5"] = caloJetObj.ecal_5x5;
+        //params["ecal_3x3"] = caloJetObj.ecal_3x3;
+        params["ecal_3x5"] = caloJetObj.ecal_3x5;
+        //params["ecal_5x5"] = caloJetObj.ecal_5x5;
+        //params["ecal_5x7"] = caloJetObj.ecal_5x7;
         params["ecal_7x7"] = caloJetObj.ecal_7x7;
-        params["ecal_2x2"] = std::max( caloJetObj.ecal_2x2_1, std::max( caloJetObj.ecal_2x2_2, std::max( caloJetObj.ecal_2x2_3, caloJetObj.ecal_2x2_4 )));
+        //params["ecal_2x3"] = std::max( caloJetObj.ecal_2x3, std::max( caloJetObj.ecal_2x3_1, caloJetObj.ecal_2x3_2 ));
+        //params["ecal_2x2"] = std::max( caloJetObj.ecal_2x2, std::max( caloJetObj.ecal_2x2_1, std::max( caloJetObj.ecal_2x2_2, std::max( caloJetObj.ecal_2x2_3, caloJetObj.ecal_2x2_4 ))));
         params["ecal_nHits"] = caloJetObj.ecal_nHits;
 
-        params["total_et"] = total_et;
+        params["l1eg_pt"] =     caloJetObj.l1egJetClusterET;
+        params["l1eg_seed"] = caloJetObj.l1eg_seed;
+        //params["l1eg_3x3"] = caloJetObj.l1eg_3x3;
+        params["l1eg_3x5"] = caloJetObj.l1eg_3x5;
+        //params["l1eg_5x5"] = caloJetObj.l1eg_5x5;
+        //params["l1eg_5x7"] = caloJetObj.l1eg_5x7;
+        params["l1eg_7x7"] = caloJetObj.l1eg_7x7;
+        //params["l1eg_2x3"] = std::max( caloJetObj.l1eg_2x3, std::max( caloJetObj.l1eg_2x3_1, caloJetObj.l1eg_2x3_2 ));
+        //params["l1eg_2x2"] = std::max( caloJetObj.l1eg_2x2, std::max( caloJetObj.l1eg_2x2_1, std::max( caloJetObj.l1eg_2x2_2, std::max( caloJetObj.l1eg_2x2_3, caloJetObj.l1eg_2x2_4 ))));
+        params["l1eg_nHits"] = caloJetObj.l1eg_nHits;
+        params["l1eg_nL1EGs"] = caloJetObj.l1eg_nL1EGs;
+        params["l1eg_nL1EGs_standaloneSS"] =  caloJetObj.l1eg_nL1EGs_standaloneSS;
+        params["l1eg_nL1EGs_standaloneIso"] =  caloJetObj.l1eg_nL1EGs_standaloneIso;
+        params["l1eg_nL1EGs_trkMatchSS"] =    caloJetObj.l1eg_nL1EGs_trkMatchSS;
+        params["l1eg_nL1EGs_trkMatchIso"] =    caloJetObj.l1eg_nL1EGs_trkMatchIso;
+
+        params["total_et"] = caloJetObj.jetClusterET;
         params["total_seed"] = caloJetObj.total_seed;
-        params["total_3x3"] = caloJetObj.total_3x3;
-        params["total_5x5"] = caloJetObj.total_5x5;
+        //params["total_3x3"] = caloJetObj.total_3x3;
+        params["total_3x5"] = caloJetObj.total_3x5;
+        //params["total_5x5"] = caloJetObj.total_5x5;
+        //params["total_5x7"] = caloJetObj.total_5x7;
         params["total_7x7"] = caloJetObj.total_7x7;
-        params["total_2x2"] = std::max( caloJetObj.total_2x2_1, std::max( caloJetObj.total_2x2_2, std::max( caloJetObj.total_2x2_3, caloJetObj.total_2x2_4 )));
+        //params["total_2x3"] = std::max( caloJetObj.total_2x3, std::max( caloJetObj.total_2x3_1, caloJetObj.total_2x3_2 ));
+        //params["total_2x2"] = std::max( caloJetObj.total_2x2, std::max( caloJetObj.total_2x2_1, std::max( caloJetObj.total_2x2_2, std::max( caloJetObj.total_2x2_3, caloJetObj.total_2x2_4 ))));
         params["total_nHits"] = caloJetObj.total_nHits;
-        params["total_nTowers"] = total_nTowers;
+        //params["total_nTowers"] = total_nTowers;
 
 
         //// return -9 for energy and dR values for ecalJet as defaults
         float hovere = -9;
         if (caloJetObj.ecalJetClusterET > 0.0)
         {
-            hovere = caloJetObj.hcalJetClusterET / ( caloJetObj.ecalJetClusterET + caloJetObj.l1EGjetET );
+            hovere = caloJetObj.hcalJetClusterET / ( caloJetObj.ecalJetClusterET + caloJetObj.l1egJetClusterET );
         }
-        //params["deltaR_ecal_vs_jet"] = get_deltaR( caloJetObj.ecalJetCluster, caloJetObj.jetCluster );
-        //params["deltaR_L1EGjet_vs_jet"] = get_deltaR( caloJetObj.l1EGjet, caloJetObj.jetCluster );
-        //params["deltaR_ecal_vs_hcal"] = get_deltaR( caloJetObj.ecalJetCluster, caloJetObj.hcalJetCluster );
-        //params["deltaR_ecal_vs_seed_tower"] = get_deltaR( caloJetObj.ecalJetCluster, caloJetObj.seedTower );
-        //params["deltaR_ecal_lead_vs_ecal"] = get_deltaR( caloJetObj.ecalJetCluster, caloJetObj.leadingL1EG );
-        //params["deltaR_ecal_lead_vs_jet"] = get_deltaR( caloJetObj.jetCluster, caloJetObj.leadingL1EG );
-        //params["deltaR_hcal_vs_jet"] = get_deltaR( caloJetObj.hcalJetCluster, caloJetObj.jetCluster );
-        //params["deltaR_hcal_vs_seed_tower"] = get_deltaR( caloJetObj.hcalJetCluster, caloJetObj.seedTower );
-        //params["deltaR_ecal_vs_seed"] = get_deltaR( caloJetObj.ecalJetCluster, caloJetObj.seedTower );
 
-
-        params["ecal_leading_pt"] =     caloJetObj.leadingL1EGET;
-        params["ecal_leading_eta"] =    caloJetObj.leadingL1EG.eta();
-        params["ecal_leading_phi"] =    caloJetObj.leadingL1EG.phi();
-        params["ecal_leading_energy"] = caloJetObj.leadingL1EG.energy();
-        params["ecal_L1EG_jet_pt"] =     caloJetObj.l1EGjetET;
-        //params["ecal_L1EG_jet_eta"] =    caloJetObj.l1EGjet.eta();
-        //params["ecal_L1EG_jet_phi"] =    caloJetObj.l1EGjet.phi();
-        //params["ecal_L1EG_jet_energy"] = caloJetObj.l1EGjet.energy();
-        params["ecal_dR0p1_leading"] =  ecal_dR0p1_leading;
-        params["ecal_dR0p05"] =         ecal_dR0p05;
-        params["ecal_dR0p075"] =        ecal_dR0p075;
-        params["ecal_dR0p1"] =          ecal_dR0p1;
-        params["ecal_dR0p125"] =        ecal_dR0p125;
-        params["ecal_dR0p15"] =         ecal_dR0p15;
-        params["ecal_dR0p2"] =          ecal_dR0p2;
-        params["ecal_dR0p3"] =          ecal_dR0p3;
-        params["ecal_dR0p4"] =          ecal_dR0p4;
-        params["ecal_nL1EGs"] =         ecal_nL1EGs;
-        params["ecal_nL1EGs_standaloneSS"] =  ecal_nL1EGs_standaloneSS;
-        params["ecal_nL1EGs_standaloneIso"] =  ecal_nL1EGs_standaloneIso;
-        params["ecal_nL1EGs_trkMatchSS"] =    ecal_nL1EGs_trkMatchSS;
-        params["ecal_nL1EGs_trkMatchIso"] =    ecal_nL1EGs_trkMatchIso;
-
-        params["ecal_pt"] = caloJetObj.ecalJetClusterET;
 
         params["jet_pt"] = caloJetObj.jetClusterET;
         params["jet_eta"] = caloJetObj.jetCluster.eta();
@@ -1069,29 +1101,38 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         params["hcal_calibration"] = get_hcal_calibration( 
             params["jet_pt"],
             params["ecal_pt"],
-            params["ecal_L1EG_jet_pt"],
+            params["l1eg_pt"],
             params["jet_eta"] );
         params["hcal_pt_calibration"] = params["hcal_pt"] * params["hcal_calibration"];
         params["jet_pt_calibration"] = params["hcal_pt_calibration"] +
-            params["ecal_pt"] + params["ecal_L1EG_jet_pt"];
+            params["ecal_pt"] + params["l1eg_pt"];
+
+        // Tau Vars
+        // The tau pT calibration is applied as a SF to the total raw pT
+        // in contrast to the jet calibration above
+        params["tau_pt_calibration_value"] = get_tau_pt_calibration(
+            params["total_3x5"],
+            params["ecal_3x5"],
+            params["l1eg_3x5"],
+            caloJetObj.n_l1eg_HoverE_LessThreshold,
+            params["jet_eta"] );
+        params["tau_pt"] = params["total_3x5"] * params["tau_pt_calibration_value"];
+        params["n_l1eg_HoverE_LessThreshold"] = caloJetObj.n_l1eg_HoverE_LessThreshold;
+        // Currently, applying the tau_pt calibration to the isolation region as well...
+        // One could switch to using the calibrated jet_pt instead for the iso region...
+        // This should be revisited - FIXME?
+        params["tau_total_iso_et"] = params["jet_pt"] * params["tau_pt_calibration_value"];
+        params["tau_iso_et"] = (params["jet_pt"] * params["tau_pt_calibration_value"]) - params["tau_pt"];
+        params["loose_iso_tau_wp"] = float(loose_iso_tau_wp( params["tau_pt"], params["tau_iso_et"], params["jet_eta"] ));
 
         float calibratedPt = -1;
         float ECalIsolation = -1; // Need to loop over 7x7 crystals of unclustered energy
         float totalPtPUcorr = -1;
         l1slhc::L1CaloJet caloJet(caloJetObj.jetCluster, calibratedPt, hovere, ECalIsolation, totalPtPUcorr);
         caloJet.SetExperimentalParams(params);
-        //for (int i = 0; i < 9; i++)
-        //{
-        //    for (int j = 0; j < 9; j++)
-        //    {
-        //        caloJet.total_map[i][j] = caloJetObj.total_map[i][j];
-        //        caloJet.ecal_map[i][j] = caloJetObj.ecal_map[i][j];
-        //        caloJet.hcal_map[i][j] = caloJetObj.hcal_map[i][j];
-        //        caloJet.l1eg_map[i][j] = caloJetObj.l1eg_map[i][j];
-        //    }
-        //}
+        caloJet.associated_l1EGs = caloJetObj.associated_l1EGs;
 
-        // Only store jets passing ET threshold and within Barrel
+        // Only store jets passing ET threshold
         if (params["jet_pt_calibration"] >= EtMinForCollection)
         {
             L1CaloJetsNoCuts->push_back( caloJet );
@@ -1101,6 +1142,37 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
             L1CaloJetCollectionBXV->push_back( 0, l1t::Jet( jet_p4 ) );
 
             if (debug) printf("Made a Jet, eta %f phi %f pt %f calibrated pt %f\n", caloJetObj.jetCluster.eta(), caloJetObj.jetCluster.phi(), caloJetObj.jetClusterET, params["jet_pt_calibration"] );
+
+        }
+
+        // Only store taus passing ET threshold
+        if (params["tau_pt"] >= EtMinForTauCollection)
+        {
+            short int tau_ieta = caloJetObj.seed_iEta;
+            short int tau_iphi = caloJetObj.seed_iPhi;
+            short int raw_et = params["total_3x5"];
+            short int iso_et = params["tau_iso_et"];
+            bool hasEM = false;
+            if (params["l1eg_3x5"] > 0. || params["ecal_3x5"] > 0.)
+            {
+                hasEM = true;
+            }
+            int tau_qual = int(params["loose_iso_tau_wp"]);
+
+            reco::Candidate::PolarLorentzVector tau_p4 = reco::Candidate::PolarLorentzVector( 
+                    params["tau_pt"], caloJet.p4().eta(), caloJet.p4().phi(), caloJet.p4().M() );
+            l1t::Tau l1Tau = l1t::Tau( tau_p4, params["tau_pt"], caloJet.p4().eta(), caloJet.p4().phi(), tau_qual, iso_et );
+            l1Tau.setTowerIEta(tau_ieta);
+            l1Tau.setTowerIPhi(tau_iphi);
+            l1Tau.setRawEt(raw_et);
+            l1Tau.setIsoEt(iso_et);
+            l1Tau.setHasEM(hasEM);
+            l1Tau.setIsMerged(false);
+            L1CaloTauCollectionBXV->push_back( 0, l1Tau );
+
+            if (debug) printf("Made a Tau, eta %f phi %f pt %i calibrated pt %f\n", l1Tau.eta(), l1Tau.phi(), l1Tau.rawEt(), l1Tau.pt() );
+
+
         }
 
 
@@ -1111,6 +1183,7 @@ void L1CaloJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     //iEvent.put(std::move(L1CaloJetsWithCuts), "L1CaloJetsWithCuts" );
     //iEvent.put(std::move(L1CaloClusterCollectionWithCuts), "L1CaloClusterCollectionWithCuts" );
     iEvent.put(std::move(L1CaloJetCollectionBXV),"L1CaloJetCollectionBXV");
+    iEvent.put(std::move(L1CaloTauCollectionBXV),"L1CaloTauCollectionBXV");
 
     //printf("end L1CaloJetProducer\n");
 }
@@ -1279,37 +1352,156 @@ L1CaloJetProducer::get_hcal_calibration( float &jet_pt, float &ecal_pt,
 }
 
 
-// Apply calibrations to all energies except seed tower if jet is close to the 
-// barrel / HGCal transition boundary
+
+// Apply calibrations to tau pT based on L1EG info, EM Fraction, Tau Eta, Tau pT
 float
-L1CaloJetProducer::apply_barrel_HGCal_boundary_calibration( float &jet_pt, float &hcal_pt, float &ecal_pt,
-        float &ecal_L1EG_jet_pt, int &seed_iEta ) const
+L1CaloJetProducer::get_tau_pt_calibration( float &tau_pt, float &ecal_pt,
+        float &l1EG_pt, float &n_L1EGs, float &tau_eta ) const
 {
 
-    int abs_iEta = abs( seed_iEta );
-    // If full 7x7 is in barrel, return 1.0
-    if(abs_iEta < 15) return 1.0;
+    float em_frac = (l1EG_pt + ecal_pt) / tau_pt;
+    float abs_eta = fabs( tau_eta );
+    float tmp_tau_pt = tau_pt;
+    if (tmp_tau_pt > 199) tmp_tau_pt = 199;
 
-    // Return values are based on 7x7 jet = 49 TTs normally
-    // and are w.r.t. the jet area in the barrel including TT 17 
+    // Different indices sizes in different calo regions.
+    // Barrel...
+    size_t em_index = 0;
+    size_t eta_index = 0;
+    size_t n_L1EG_index = 0;
+    size_t pt_index = 0;
     float calib = 1.0;
-    if(abs_iEta == 15) 
+        // HERE
+    if (abs_eta <= 1.5)
     {
-        calib = 49./42.;
-    }
-    else if(abs_iEta == 16) 
+        // Start loop checking 1st value
+        for( unsigned int i = 0; i < tauL1egValuesBarrel.size(); i++)
+        {
+            if(n_L1EGs == tauL1egValuesBarrel.at(i)) break;
+            if(tauL1egValuesBarrel.at(i) == tauL1egValuesBarrel.back()) break; // to preven incrementing on last one
+            n_L1EG_index++;
+        }
+
+        // Find key value pair matching n L1EGs
+        for( auto &l1eg_info : tauL1egInfoMapBarrel )
+        {
+            if(l1eg_info.first != double(n_L1EG_index)) continue;
+            // Start loop checking 2nd value
+            for( unsigned int i = 1; i < l1eg_info.second.size(); i++)
+            {
+                if(em_frac <= l1eg_info.second.at(i)) break;
+                em_index++;
+            }
+        }
+
+        // Start loop checking 2nd value
+        for( unsigned int i = 1; i < tauAbsEtaBinsBarrel.size(); i++)
+        {
+            if(abs_eta <= tauAbsEtaBinsBarrel.at(i)) break;
+            eta_index++;
+        }
+
+        // Start loop checking 2nd value
+        for( unsigned int i = 1; i < tauPtBins.size(); i++)
+        {
+            if(tmp_tau_pt <= tauPtBins.at(i)) break;
+            pt_index++;
+        }
+        //printf("Barrel tau calib etaId %i nL1EG Id %i emId %i tauPtId %i\n",int(eta_index),int(n_L1EG_index),int(em_index),int(pt_index));
+        calib = tauPtCalibrationsBarrel[ eta_index ][ n_L1EG_index ][ em_index ][ pt_index ];
+    } // end Barrel
+    else if (abs_eta <= 3.0) // HGCal
     {
-        calib = 49./35.;
-    }
-    else if(abs_iEta == 17) 
+        // Start loop checking 1st value
+        for( unsigned int i = 0; i < tauL1egValuesHGCal.size(); i++)
+        {
+            if(n_L1EGs == tauL1egValuesHGCal.at(i)) break;
+            if(tauL1egValuesHGCal.at(i) == tauL1egValuesHGCal.back()) break; // to preven incrementing on last one
+            n_L1EG_index++;
+        }
+
+        // Find key value pair matching n L1EGs
+        for( auto &l1eg_info : tauL1egInfoMapHGCal )
+        {
+            if(l1eg_info.first != double(n_L1EG_index)) continue;
+            // Start loop checking 2nd value
+            for( unsigned int i = 1; i < l1eg_info.second.size(); i++)
+            {
+                if(em_frac <= l1eg_info.second.at(i)) break;
+                em_index++;
+            }
+        }
+
+        // Start loop checking 2nd value
+        for( unsigned int i = 1; i < tauAbsEtaBinsHGCal.size(); i++)
+        {
+            if(abs_eta <= tauAbsEtaBinsHGCal.at(i)) break;
+            eta_index++;
+        }
+
+        // Start loop checking 2nd value
+        for( unsigned int i = 1; i < tauPtBins.size(); i++)
+        {
+            if(tmp_tau_pt <= tauPtBins.at(i)) break;
+            pt_index++;
+        }
+        //printf("HGCal tau calib etaId %i nL1EG Id %i emId %i tauPtId %i\n",int(eta_index),int(n_L1EG_index),int(em_index),int(pt_index));
+        calib = tauPtCalibrationsHGCal[ eta_index ][ n_L1EG_index ][ em_index ][ pt_index ];
+    } // end HGCal
+    else return calib;
+
+    //printf(" - tau pt %f index %i\n", tau_pt, int(pt_index));
+    //printf(" --- calibration: %f\n", calib );
+
+    if(calib > 5 && debug)
     {
-        calib = 49./28.;
+        printf(" - l1eg %f, ecal %f, tau %f, em frac %f index %i\n", l1EG_pt, ecal_pt, tau_pt, em_frac, int(em_index));
+        printf(" - eta %f, abs eta %f index %i\n", tau_eta, abs_eta, int(eta_index));
+        printf(" - tau pt %f tmp_tau_pt %f index %i\n", tau_pt, tmp_tau_pt, int(pt_index));
+        printf(" --- calibration: %f\n\n", calib );
     }
-    jet_pt = jet_pt * calib;
-    hcal_pt = hcal_pt * calib;
-    ecal_pt = ecal_pt * calib;
-    ecal_L1EG_jet_pt = ecal_L1EG_jet_pt * calib;
     return calib;
+}
+
+
+
+
+// Loose IsoTau WP
+int
+L1CaloJetProducer::loose_iso_tau_wp( float &tau_pt, float &tau_iso_et, float &tau_eta ) const
+{
+    // Fully relaxed above 100 GeV pT
+    if (tau_pt > 100)
+    {
+        return 1;
+    }
+    // Split by barrel and HGCal
+    // with Barrel first
+    if (fabs(tau_eta) < 1.5)
+    {
+        if (isoTauBarrel.Eval(tau_pt) >= (tau_iso_et / tau_pt))
+        {
+            return 1;
+        }
+        else 
+        {
+            return 0;
+        }
+    }
+    // HGCal
+    if (fabs(tau_eta) < 3.0)
+    {
+        if (isoTauHGCal.Eval(tau_pt) >= (tau_iso_et / tau_pt))
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    // Beyond HGCal
+    return 0;
 }
 
 

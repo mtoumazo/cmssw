@@ -20,6 +20,7 @@ Implementation:
 #include <array>
 
 // user include files
+#include "L1Trigger/L1TCalorimeter/interface/CaloTools.h"
 #include "SimDataFormats/Track/interface/SimTrackContainer.h"
 #include "DataFormats/L1Trigger/interface/L1EmParticle.h"
 #include "DataFormats/L1Trigger/interface/L1EmParticleFwd.h"
@@ -924,6 +925,19 @@ void L1EGCrystalClusterEmulatorProducer::produce(edm::Event& iEvent, const edm::
             	      } // end of loop over eta towers
                    } 
                 } // end of loop over phi links
+            // Make sure towers with 0 ET are initialized with proper iEta, iPhi coordinates
+            float tower_width=0.0873;
+            for (int jj=0; jj<4; ++jj){
+                for (int ii=0; ii<17; ++ii){
+                    float phi=getPhiMin_card(cc)*tower_width/5 -3.14159 + (jj+0.5)*tower_width;
+                    float eta=getEtaMin_card(cc)*tower_width/5 -17*tower_width + (ii+0.5)*tower_width;
+                    //if (ECAL_tower_L1Card[jj][ii][cc]>0) cout<<eta<<" "<<getEtaMin_card(cc)<<" "<<iEta_tower_L1Card[jj][ii][cc]<<" "<<getTower_absoluteEtaID(eta)<<" "<<phi<<" "<<iPhi_tower_L1Card[jj][ii][cc]<<" "<<getTower_absolutePhiID(phi)<<endl;
+                    iEta_tower_L1Card[jj][ii][cc]=getTower_absoluteEtaID(eta);
+                    iPhi_tower_L1Card[jj][ii][cc]=getTower_absolutePhiID(phi);
+                }
+            }
+
+
              } // end of check if inside card
           } // end of loop over hits to build towers
 
@@ -1224,72 +1238,85 @@ void L1EGCrystalClusterEmulatorProducer::produce(edm::Event& iEvent, const edm::
    std::unique_ptr< BXVector<l1t::EGamma> > L1EGammaCollectionBXVEmulator(new l1t::EGammaBxCollection);
    std::unique_ptr< L1CaloTowerCollection > l1CaloTowerCollection(new L1CaloTowerCollection);
 
-   // Fill the cluster collection
-   for (int ii=0; ii<48; ++ii){
-       for (int jj=0; jj<2; ++jj){
-           for (int ll=0; ll<3; ++ll){
-               if (energy_cluster_L2Card[ii][jj][ll]>0.45 ){
-		   reco::Candidate::PolarLorentzVector p4calibrated(energy_cluster_L2Card[ii][jj][ll],getEta_fromL2LinkCardTowerCrystal(ii,ll,towerID_cluster_L2Card[ii][jj][ll],crystalID_cluster_L2Card[ii][jj][ll]),getPhi_fromL2LinkCardTowerCrystal(ii,ll,towerID_cluster_L2Card[ii][jj][ll],crystalID_cluster_L2Card[ii][jj][ll]), 0.);
-		   SimpleCaloHit centerhit;
-		   bool is_iso=passes_iso(energy_cluster_L2Card[ii][jj][ll],isolation_cluster_L2Card[ii][jj][ll]);
-                   bool is_looseTkiso=passes_looseTkiso(energy_cluster_L2Card[ii][jj][ll],isolation_cluster_L2Card[ii][jj][ll]);
-		   bool is_ss=(showerShape_cluster_L2Card[ii][jj][ll]==1);
-		   bool is_photon=(photonShowerShape_cluster_L2Card[ii][jj][ll]==1) && is_ss && is_iso;
-                   bool is_looseTkss=(showerShapeLooseTk_cluster_L2Card[ii][jj][ll]==1);
-		   //bool is_he=passes_he(energy_cluster_L2Card[ii][jj][ll],HE_cluster_L2Card[ii][jj][ll]); //not used so far
-		   // All the ID set to Standalone WP! Some dummy values for non calculated variables
-		   l1slhc::L1EGCrystalCluster cluster(p4calibrated, energy_cluster_L2Card[ii][jj][ll], HE_cluster_L2Card[ii][jj][ll], isolation_cluster_L2Card[ii][jj][ll], centerhit.id,-1000, float(brem_cluster_L2Card[ii][jj][ll]),-1000,-1000, energy_cluster_L2Card[ii][jj][ll],-1, is_iso && is_ss, is_iso && is_ss, is_photon, is_iso && is_ss, is_looseTkiso && is_looseTkss, is_iso && is_ss); 
-           // Experimental parameters, don't want to bother with hardcoding them in data format
-           std::map<std::string, float> params;
-           params["standaloneWP_showerShape"] = is_ss;
-           params["standaloneWP_isolation"] = is_iso;
-           params["trkMatchWP_showerShape"] = is_looseTkss;
-           params["trkMatchWP_isolation"] = is_looseTkiso;
-           cluster.SetExperimentalParams(params);
-		   L1EGXtalClusterEmulator->push_back(cluster);
+    // Fill the cluster collection and towers as well
+    for (int ii=0; ii<48; ++ii){ // 48 links
+        for (int ll=0; ll<3; ++ll){ // 3 cards
+            // For looping over the Towers a few lines below
+            for (int jj=0; jj<2; ++jj){ // 2 L1EGs
+                if (energy_cluster_L2Card[ii][jj][ll]>0.45 ){
+                    reco::Candidate::PolarLorentzVector p4calibrated(energy_cluster_L2Card[ii][jj][ll],getEta_fromL2LinkCardTowerCrystal(ii,ll,towerID_cluster_L2Card[ii][jj][ll],crystalID_cluster_L2Card[ii][jj][ll]),getPhi_fromL2LinkCardTowerCrystal(ii,ll,towerID_cluster_L2Card[ii][jj][ll],crystalID_cluster_L2Card[ii][jj][ll]), 0.);
+                    SimpleCaloHit centerhit;
+                    bool is_iso=passes_iso(energy_cluster_L2Card[ii][jj][ll],isolation_cluster_L2Card[ii][jj][ll]);
+                    bool is_looseTkiso=passes_looseTkiso(energy_cluster_L2Card[ii][jj][ll],isolation_cluster_L2Card[ii][jj][ll]);
+                    bool is_ss=(showerShape_cluster_L2Card[ii][jj][ll]==1);
+                    bool is_photon=(photonShowerShape_cluster_L2Card[ii][jj][ll]==1) && is_ss && is_iso;
+                    bool is_looseTkss=(showerShapeLooseTk_cluster_L2Card[ii][jj][ll]==1);
+                    //bool is_he=passes_he(energy_cluster_L2Card[ii][jj][ll],HE_cluster_L2Card[ii][jj][ll]); //not used so far
+                    // All the ID set to Standalone WP! Some dummy values for non calculated variables
+                    l1slhc::L1EGCrystalCluster cluster(p4calibrated, energy_cluster_L2Card[ii][jj][ll], HE_cluster_L2Card[ii][jj][ll], isolation_cluster_L2Card[ii][jj][ll], centerhit.id,-1000, float(brem_cluster_L2Card[ii][jj][ll]),-1000,-1000, energy_cluster_L2Card[ii][jj][ll],-1, is_iso && is_ss, is_iso && is_ss, is_photon, is_iso && is_ss, is_looseTkiso && is_looseTkss, is_iso && is_ss); 
+                    // Experimental parameters, don't want to bother with hardcoding them in data format
+                    std::map<std::string, float> params;
+                    params["standaloneWP_showerShape"] = is_ss;
+                    params["standaloneWP_isolation"] = is_iso;
+                    params["trkMatchWP_showerShape"] = is_looseTkss;
+                    params["trkMatchWP_isolation"] = is_looseTkiso;
+                    params["TTiEta"] = getToweriEta_fromAbsoluteID( getTower_absoluteEtaID( p4calibrated.eta() ) );
+                    params["TTiPhi"] = getToweriPhi_fromAbsoluteID( getTower_absolutePhiID( p4calibrated.phi() ) );
+                    cluster.SetExperimentalParams(params);
+                    L1EGXtalClusterEmulator->push_back(cluster);
 
-                   // BXVector l1t::EGamma quality defined with respect to these WPs
-                   // FIXME, need to defaul some of these to 0 I think...
-                   int standaloneWP = (int)(is_iso && is_ss);
-                   int looseL1TkMatchWP = (int)(is_looseTkiso && is_looseTkss); 
-                   int photonWP = (int)(is_photon);
-                   int quality = (standaloneWP*std::pow(2,0)) + (looseL1TkMatchWP*std::pow(2,1)) + (photonWP*std::pow(2,2));
-                   L1EGammaCollectionBXVEmulator->push_back(0,l1t::EGamma(p4calibrated, p4calibrated.pt(), p4calibrated.eta(), p4calibrated.phi(),quality,1 ));
-
-		}
-	    }
-	}
+                    // BXVector l1t::EGamma quality defined with respect to these WPs
+                    // FIXME, need to defaul some of these to 0 I think...
+                    int standaloneWP = (int)(is_iso && is_ss);
+                    int looseL1TkMatchWP = (int)(is_looseTkiso && is_looseTkss); 
+                    int photonWP = (int)(is_photon);
+                    int quality = (standaloneWP*std::pow(2,0)) + (looseL1TkMatchWP*std::pow(2,1)) + (photonWP*std::pow(2,2));
+                    L1EGammaCollectionBXVEmulator->push_back(0,l1t::EGamma(p4calibrated, p4calibrated.pt(), p4calibrated.eta(), p4calibrated.phi(),quality,1 ));
+                }
+            }
+        }
     }
 
-   // Fill the tower collection
-   for (int ii=0; ii<48; ++ii){
-       for (int jj=0; jj<17; ++jj){
-           for (int ll=0; ll<3; ++ll){
-              L1CaloTower l1CaloTower;
-              if (HCAL_tower_L2Card[ii][jj][ll]>0 or ECAL_tower_L2Card[ii][jj][ll]>0){
-                 l1CaloTower.ecal_tower_et = ECAL_tower_L2Card[ii][jj][ll];
-                 l1CaloTower.hcal_tower_et = HCAL_tower_L2Card[ii][jj][ll];
-                 l1CaloTower.tower_iEta = getToweriEta_fromAbsoluteID(iEta_tower_L2Card[ii][jj][ll]);
-                 l1CaloTower.tower_iPhi = getToweriPhi_fromAbsoluteID(iPhi_tower_L2Card[ii][jj][ll]);
-                 l1CaloTower.tower_eta = getTowerEta_fromAbsoluteID(iEta_tower_L2Card[ii][jj][ll]);
-                 l1CaloTower.tower_phi = getTowerPhi_fromAbsoluteID(iPhi_tower_L2Card[ii][jj][ll]);
-                 //std::cout << "Tower TP Position eta,iEta: " << l1CaloTower.tower_eta << "," << l1CaloTower.tower_iEta << std::endl;
-                 //std::cout << "Tower TP Position phi,iPhi: " << l1CaloTower.tower_phi << "," << l1CaloTower.tower_iPhi << std::endl;
-                 
-                 //for(const auto& hit : hcalhits)
-                 //{
-                 //   if (l1CaloTower.tower_iPhi == hit.id_hcal.iphi() && l1CaloTower.tower_iEta == hit.id_hcal.ieta() )
-                 //   {
-                 //       //printf("\nMatching Towers iEta:iPhi %i %i - eta1:eta2 %f %f - phi1:phi2 %f %f", l1CaloTower.tower_iEta,l1CaloTower.tower_iPhi,l1CaloTower.tower_eta,hit.position.eta(),l1CaloTower.tower_phi,(float)hit.position.phi());
-                 //       if (l1CaloTower.hcal_tower_et == hit.pt()) std::cout << ".";
-                 //       else printf("\n - Mismatch in HCAL energy, l1CaloTower ET: %f hit direct ET: %f", l1CaloTower.hcal_tower_et, hit.pt());
-                 //   }
-                 //}
-                 l1CaloTowerCollection->push_back( l1CaloTower );
-	      }
-       	   }
-	}
-   }
+    for (int ii=0; ii<48; ++ii){ // 48 links
+        for (int ll=0; ll<3; ++ll){ // 3 cards
+            // Fill the tower collection
+            for (int jj=0; jj<17; ++jj){ // 17 TTs
+                L1CaloTower l1CaloTower;
+                //if (HCAL_tower_L2Card[ii][jj][ll]>0 or ECAL_tower_L2Card[ii][jj][ll]>0){
+                l1CaloTower.ecal_tower_et = ECAL_tower_L2Card[ii][jj][ll];
+                l1CaloTower.hcal_tower_et = HCAL_tower_L2Card[ii][jj][ll];
+                l1CaloTower.tower_iEta = getToweriEta_fromAbsoluteID(iEta_tower_L2Card[ii][jj][ll]);
+                l1CaloTower.tower_iPhi = getToweriPhi_fromAbsoluteID(iPhi_tower_L2Card[ii][jj][ll]);
+                l1CaloTower.tower_eta = getTowerEta_fromAbsoluteID(iEta_tower_L2Card[ii][jj][ll]);
+                l1CaloTower.tower_phi = getTowerPhi_fromAbsoluteID(iPhi_tower_L2Card[ii][jj][ll]);
+                // Some towers have incorrect eta/phi because that wasn't initialized in certain cases, fix these
+                if (l1CaloTower.tower_eta < -80. && l1CaloTower.tower_phi < -90.)
+                {
+                    l1CaloTower.tower_eta = l1t::CaloTools::towerEta( l1CaloTower.tower_iEta );
+                    l1CaloTower.tower_phi = l1t::CaloTools::towerPhi( l1CaloTower.tower_iEta, l1CaloTower.tower_iPhi );
+                }
+                l1CaloTower.isBarrel = true;
+
+                // Add L1EGs if they match in iEta / iPhi
+                // L1EGs are already pT ordered, we will take the ID info for the leading one, but pT as the sum
+                for (auto l1eg : *L1EGXtalClusterEmulator){
+
+                    if (l1eg.GetExperimentalParam("TTiEta") != l1CaloTower.tower_iEta) continue;
+                    if (l1eg.GetExperimentalParam("TTiPhi") != l1CaloTower.tower_iPhi) continue;
+
+                    l1CaloTower.n_l1eg++;
+                    l1CaloTower.l1eg_tower_et += l1eg.pt();
+                    if (l1CaloTower.n_l1eg > 1) continue; // Don't record L1EG quality info for subleading L1EG
+                    l1CaloTower.l1eg_trkSS = l1eg.GetExperimentalParam("trkMatchWP_showerShape");
+                    l1CaloTower.l1eg_trkIso = l1eg.GetExperimentalParam("trkMatchWP_isolation");
+                    l1CaloTower.l1eg_standaloneSS = l1eg.GetExperimentalParam("standaloneWP_showerShape");
+                    l1CaloTower.l1eg_standaloneIso = l1eg.GetExperimentalParam("standaloneWP_isolation");
+                }
+
+                l1CaloTowerCollection->push_back( l1CaloTower );
+            }
+        }
+    }
 
 
 
