@@ -43,9 +43,9 @@ l1uGTEmuTree.ugtToken = cms.InputTag("simGtStage2Digis")
 
 L1NtupleEMU = cms.Sequence(
   l1EventTree
-  +l1UpgradeTfMuonEmuTree
-  +l1CaloTowerEmuTree
+#  +l1UpgradeTfMuonEmuTree
+#  +l1CaloTowerEmuTree
   +l1UpgradeEmuTree
 #  +l1MuonEmuTree
-  +l1uGTEmuTree
+#  +l1uGTEmuTree
 )

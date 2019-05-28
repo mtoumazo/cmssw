@@ -50,7 +50,7 @@ l1PhaseIITree = cms.EDAnalyzer("L1PhaseIITreeProducer",
 
    L1PFTauToken = cms.InputTag("l1pfTauProducer","L1PFTaus"),   
 
-   maxL1Extra = cms.uint32(20)
+   maxL1Extra = cms.uint32(100)
 )
 
 #### Gen level tree
